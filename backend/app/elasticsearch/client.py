@@ -23,6 +23,7 @@ class ElasticsearchTransport(Protocol):
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
         content: bytes | None = None,
+        timeout_seconds: float | None = None,
     ) -> TransportResponse: ...
 
 
@@ -46,6 +47,7 @@ class HttpxElasticsearchTransport:
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
         content: bytes | None = None,
+        timeout_seconds: float | None = None,
     ) -> TransportResponse:
         import httpx
 
@@ -56,7 +58,7 @@ class HttpxElasticsearchTransport:
             params=params,
             json=json_body,
             content=content,
-            timeout=30.0,
+            timeout=timeout_seconds or 30.0,
         )
         parsed_json: dict[str, Any] | None
         if response.content:
@@ -82,10 +84,12 @@ class ElasticsearchClient:
         base_url: str,
         api_key: str = "",
         transport: ElasticsearchTransport | None = None,
+        request_timeout_seconds: float = 30.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.transport = transport or HttpxElasticsearchTransport()
+        self.request_timeout_seconds = request_timeout_seconds
 
     def _headers(self, *, ndjson: bool = False) -> dict[str, str]:
         headers = {
@@ -116,6 +120,7 @@ class ElasticsearchClient:
             params=params,
             json_body=json_body,
             content=content,
+            timeout_seconds=self.request_timeout_seconds,
         )
         allowed_statuses = expected_statuses or {200}
         if response.status_code not in allowed_statuses:
@@ -183,6 +188,7 @@ class ElasticsearchClient:
             "HEAD",
             f"{self.base_url}/{index}",
             headers=self._headers(),
+            timeout_seconds=self.request_timeout_seconds,
         )
         if response.status_code == 200:
             return True
@@ -290,6 +296,7 @@ class ElasticsearchClient:
             "GET",
             f"{self.base_url}/{index}/_doc/{document_id}",
             headers=self._headers(),
+            timeout_seconds=self.request_timeout_seconds,
         )
         if response.status_code == 404:
             return None
@@ -314,6 +321,7 @@ class ElasticsearchClient:
             "DELETE",
             f"{self.base_url}/{index}/_doc/{document_id}",
             headers=self._headers(),
+            timeout_seconds=self.request_timeout_seconds,
         )
         if response.status_code in {200, 404}:
             return
@@ -375,6 +383,7 @@ class ElasticsearchClient:
             "GET",
             f"{self.base_url}/_alias/{alias}",
             headers=self._headers(),
+            timeout_seconds=self.request_timeout_seconds,
         )
         if response.status_code == 404:
             return []

@@ -217,6 +217,24 @@ def get_remote_analysis_publish_lock_seconds() -> int:
     return max(value, 60)
 
 
+def get_remote_analysis_sync_batch_size() -> int:
+    raw = os.getenv("REMOTE_ANALYSIS_SYNC_BATCH_SIZE", "100").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return 100
+    return max(10, min(value, 500))
+
+
+def get_remote_analysis_http_timeout_seconds() -> float:
+    raw = os.getenv("REMOTE_ANALYSIS_HTTP_TIMEOUT_SECONDS", "180").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 180.0
+    return max(value, 30.0)
+
+
 def get_environment() -> str:
     return os.getenv("APP_ENV", "development")
 

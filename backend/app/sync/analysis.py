@@ -11,7 +11,9 @@ from app.config import (
     AnalysisSyncSummary,
     get_duplicate_embedding_provider,
     get_local_analysis_metadata_index,
+    get_remote_analysis_http_timeout_seconds,
     get_remote_analysis_publish_lock_seconds,
+    get_remote_analysis_sync_batch_size,
     get_remote_analysis_chunk_alias,
     get_remote_analysis_duplicate_cluster_alias,
     get_remote_analysis_duplicate_edge_alias,
@@ -186,9 +188,10 @@ class RemoteAnalysisSyncService:
         progress_label: str,
     ) -> int:
         copied = 0
+        batch_size = get_remote_analysis_sync_batch_size()
         for batch in source_client.iterate_document_batches(
             index=source_index,
-            page_size=250,
+            page_size=batch_size,
             source_includes=source_fields,
         ):
             target_client.bulk_index(index=target_index, documents=batch)
@@ -514,9 +517,13 @@ class RemoteAnalysisSyncService:
 
 def build_remote_analysis_sync_service() -> RemoteAnalysisSyncService:
     return RemoteAnalysisSyncService(
-        local_client=ElasticsearchClient(base_url=get_target_es_url()),
+        local_client=ElasticsearchClient(
+            base_url=get_target_es_url(),
+            request_timeout_seconds=get_remote_analysis_http_timeout_seconds(),
+        ),
         remote_client=ElasticsearchClient(
             base_url=get_remote_analysis_es_url(),
             api_key=get_remote_analysis_es_api_key(),
+            request_timeout_seconds=get_remote_analysis_http_timeout_seconds(),
         ),
     )
