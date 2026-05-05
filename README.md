@@ -31,6 +31,9 @@ Implemented today:
 - duplicate edge materialization in `kcs-kb-duplicate-edges-v1`
 - duplicate cluster materialization in `kcs-kb-duplicate-clusters-v1`
 - resumable full refresh pipeline with checkpointed progress
+- remote analysis sync workflows:
+  - pull published analysis indices into local working indices
+  - publish local analysis indices to a remote staged snapshot plus alias promotion
 - live UI for:
   - admin pipeline control
   - lookup search
@@ -47,7 +50,7 @@ Not implemented yet:
 
 - creating a new canonical KB article from a cluster
 - merging source KB articles into a new draft article
-- pushing accepted editorial outcomes back to the remote/source cluster
+- pushing accepted editorial outcomes back to the remote/source KB content index
 - reviewer notes, audit trail, and assignment workflow
 - pagination/bulk review for the full cluster corpus in the UI
 - a full live side-by-side merge workspace for persisted clusters
@@ -55,7 +58,7 @@ Not implemented yet:
 Why those parts are not implemented yet:
 
 - the current milestone is duplicate detection and review-state persistence
-- article authoring and remote write-back need stronger business rules and source-of-truth ownership
+- article authoring and source-content write-back need stronger business rules and source-of-truth ownership
 - cluster quality and reviewer workflow needed to be stabilized first
 
 For a fuller status breakdown, see [docs/status.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/status.md).
@@ -82,6 +85,13 @@ Services started by `docker compose`:
 - local embeddings: `http://localhost:7997`
 - Elasticsearch: `http://localhost:9200`
 - Kibana: `http://localhost:5601`
+
+Remote Elasticsearch roles can now be separated:
+
+- `SOURCE_ES_*`
+  read-only source KB index
+- `REMOTE_ANALYSIS_*`
+  shared published duplicate-analysis indices
 
 ## Quick Start
 
@@ -121,6 +131,12 @@ make up
 - config dump: `http://localhost:8000/config/effective`
 - local embeddings health: `http://localhost:7997/health`
 
+6. Optional remote analysis configuration:
+
+- keep `SOURCE_ES_INDEX` pointed at the existing source KB index
+- keep `REMOTE_ANALYSIS_*` pointed at a separate analysis namespace
+- do not reuse the source index name for the remote analysis aliases
+
 6. Stop the stack:
 
 ```bash
@@ -147,6 +163,21 @@ The pipeline is resumable:
 - unchanged chunk work is reused
 - duplicate edges are checkpointed and can be resumed
 - cluster materialization writes progress incrementally
+
+### 1b. Pull a published shared analysis snapshot
+
+Open `Admin` and use:
+
+- `Pull published remote analysis`
+
+This copies the remote published analysis aliases into the local working indices:
+
+- `kcs-kb-articles-v1`
+- `kcs-kb-article-chunks-v1`
+- `kcs-kb-duplicate-edges-v1`
+- `kcs-kb-duplicate-clusters-v1`
+
+Use this when a new user wants to start from the latest published embeddings, edges, and clusters instead of computing everything from zero.
 
 ### 2. Search for related articles
 
@@ -186,6 +217,22 @@ The live editorial decisions currently persist review state only:
 
 They do not create or publish a new KB article yet.
 
+### 4. Publish a completed local analysis snapshot
+
+Open `Admin` and use:
+
+- `Publish local analysis to remote`
+
+This does **not** write into the remote source KB index.
+
+Instead it:
+
+1. copies the local working indices into versioned remote staging indices
+2. validates document counts
+3. atomically switches the remote analysis aliases
+
+This lets multiple users consume a shared published duplicate-analysis result without exposing half-finished local work.
+
 ## Core Indices
 
 The backend currently works with these local indices:
@@ -199,11 +246,20 @@ The backend currently works with these local indices:
 - `kcs-kb-duplicate-clusters-v1`
   persisted duplicate cluster documents
 
+If remote analysis publishing is configured, those same logical datasets are also published under separate remote aliases such as:
+
+- `kcs-kb-analysis-articles-v1`
+- `kcs-kb-analysis-article-chunks-v1`
+- `kcs-kb-analysis-duplicate-edges-v1`
+- `kcs-kb-analysis-duplicate-clusters-v1`
+
 ## Main API Endpoints
 
 Admin and pipeline:
 
 - `POST /admin/workflows/full-refresh`
+- `POST /admin/workflows/pull-remote-analysis`
+- `POST /admin/workflows/publish-remote-analysis`
 - `GET /admin/jobs`
 - `GET /admin/jobs/{job_id}`
 - `GET /admin/jobs/{job_id}/stream`
@@ -251,10 +307,15 @@ docker compose config
   implemented scope, limitations, and next steps
 - [docs/ui-qa.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/ui-qa.md)
   manual UI verification checklist and known UI caveats
+- [docs/tech-stack.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/tech-stack.md)
+  detailed stack, configuration, and design-choice reference
 
 ## Notes
 
 - The local embedding service uses `jinaai/jina-embeddings-v3-hf`.
+- Duplicate embeddings can also be calculated via the Jina API by setting:
+  - `DUPLICATE_EMBEDDING_PROVIDER=jina`
+  - `JINA_API_KEY`
 - First startup can take several minutes because model weights must be downloaded.
 - The model is published under `CC BY-NC 4.0`; review the license before production or commercial use.
 - The frontend still contains a mock/demo workflow fallback for a few older side-by-side compare screens, but the main cluster-review path is now live and API-backed.

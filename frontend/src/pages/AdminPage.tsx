@@ -1,16 +1,26 @@
 import { Badge } from "../components/Badge";
-import type { AdminIndexStatus, AdminPipelineRun, JobKind, JobLogRecord } from "../types";
+import type {
+  AdminIndexStatus,
+  AdminPipelineRun,
+  JobKind,
+  JobLogRecord,
+  RemoteAnalysisStatus,
+} from "../types";
 
 type AdminPageProps = {
   apiBaseUrl: string;
   activeRun: AdminPipelineRun | null;
   indexStatus: AdminIndexStatus | null;
   indexStatusError: string | null;
+  remoteAnalysisStatus: RemoteAnalysisStatus | null;
+  remoteAnalysisStatusError: string | null;
   isStartingPipeline: boolean;
   jobLogs: JobLogRecord[];
   pipelineError: string | null;
   onRunFullPipeline: () => void;
   onRunJob: (jobKind: JobKind) => void;
+  onPullRemoteAnalysis: () => void;
+  onPublishRemoteAnalysis: () => void;
 };
 
 const adminActions: Array<{
@@ -40,11 +50,15 @@ export function AdminPage({
   activeRun,
   indexStatus,
   indexStatusError,
+  remoteAnalysisStatus,
+  remoteAnalysisStatusError,
   isStartingPipeline,
   jobLogs,
   pipelineError,
   onRunFullPipeline,
   onRunJob,
+  onPullRemoteAnalysis,
+  onPublishRemoteAnalysis,
 }: AdminPageProps) {
   const compareTextCoverage = indexStatus?.articleIndex.coverage.find(
     (item) => item.fieldName === "compare_text",
@@ -117,6 +131,117 @@ export function AdminPage({
             </button>
           ))}
         </div>
+        <div className="full-pipeline-card">
+          <div>
+            <h4>Remote analysis sync</h4>
+            <p className="supporting-copy">
+              Pull the published shared analysis snapshot into local working indices, or
+              publish a newly calculated local snapshot back to the remote analysis aliases.
+              The remote source KB index stays read-only.
+            </p>
+          </div>
+          <div className="panel-actions">
+            <button
+              type="button"
+              className="action-button"
+              onClick={onPullRemoteAnalysis}
+              disabled={isStartingPipeline || activeRun?.status === "running" || activeRun?.status === "queued"}
+            >
+              Pull published remote analysis
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={onPublishRemoteAnalysis}
+              disabled={isStartingPipeline || activeRun?.status === "running" || activeRun?.status === "queued"}
+            >
+              Publish local analysis to remote
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel-card" aria-label="Remote analysis status">
+        <div className="panel-header">
+          <div>
+            <p className="section-kicker">Remote analysis</p>
+            <h3>Shared snapshot status</h3>
+          </div>
+          {remoteAnalysisStatus ? (
+            <Badge tone={remoteAnalysisStatus.enabled ? "success" : "accent"}>
+              {remoteAnalysisStatus.enabled ? "configured" : "not configured"}
+            </Badge>
+          ) : null}
+        </div>
+        {remoteAnalysisStatus ? (
+          <div className="status-stack">
+            {remoteAnalysisStatus.localSnapshotStale ? (
+              <p className="error-copy">
+                Local working indices are older than the latest published remote analysis snapshot.
+                Pull the published remote analysis before reviewing or calculating new deltas.
+              </p>
+            ) : null}
+            <div className="status-summary-grid">
+              <article className="status-summary-card">
+                <span className="status-label">Source index</span>
+                <strong>{remoteAnalysisStatus.sourceIndex}</strong>
+                <p>
+                  {remoteAnalysisStatus.sourceIndexProtected
+                    ? "Protected from analysis publish aliases."
+                    : "Warning: analysis alias overlaps the source index."}
+                </p>
+              </article>
+              <article className="status-summary-card">
+                <span className="status-label">Metadata index</span>
+                <strong>{remoteAnalysisStatus.metadataIndex}</strong>
+                <p>Stores latest published analysis snapshot metadata.</p>
+              </article>
+              <article className="status-summary-card">
+                <span className="status-label">Latest published run</span>
+                <strong>{remoteAnalysisStatus.latestPublishedRun?.runId ?? "none"}</strong>
+                <p>
+                  {remoteAnalysisStatus.latestPublishedRun
+                    ? `${remoteAnalysisStatus.latestPublishedRun.embeddingProvider} at ${remoteAnalysisStatus.latestPublishedRun.publishedAt}`
+                    : "No published remote analysis snapshot recorded yet."}
+                </p>
+              </article>
+              <article className="status-summary-card">
+                <span className="status-label">Local sync</span>
+                <strong>{remoteAnalysisStatus.localSync?.remoteRunId ?? "none"}</strong>
+                <p>
+                  {remoteAnalysisStatus.localSync
+                    ? `${remoteAnalysisStatus.localSync.embeddingProvider} synced at ${remoteAnalysisStatus.localSync.syncedAt}`
+                    : "No local remote-analysis sync recorded yet."}
+                </p>
+              </article>
+            </div>
+            <div className="status-detail-grid">
+              {Object.entries(remoteAnalysisStatus.aliases).map(([key, aliasStatus]) => (
+                <article key={key} className="status-detail-card">
+                  <div className="status-detail-header">
+                    <strong>{key}</strong>
+                    <Badge tone="neutral">{aliasStatus.documentCount} docs</Badge>
+                  </div>
+                  <p>{aliasStatus.alias}</p>
+                  <p>
+                    backing indices:{" "}
+                    {aliasStatus.backingIndices.length > 0
+                      ? aliasStatus.backingIndices.join(", ")
+                      : "none"}
+                  </p>
+                  <p>
+                    local docs: {remoteAnalysisStatus.localDocumentCounts[key] ?? 0} / remote docs:{" "}
+                    {aliasStatus.documentCount}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="supporting-copy">
+            {remoteAnalysisStatusError ?? "Loading remote analysis status..."}
+          </p>
+        )}
       </section>
 
       <section className="panel-card" aria-label="Index status">

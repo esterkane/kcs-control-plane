@@ -4,7 +4,12 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.admin_jobs import JobRunResponse, JobStartResponse, get_admin_job_manager
-from app.admin_status import AdminIndexStatusResponse, get_admin_index_status
+from app.admin_status import (
+    AdminIndexStatusResponse,
+    RemoteAnalysisStatusResponse,
+    get_admin_index_status,
+    get_remote_analysis_status,
+)
 from app.config import IngestRequest, IngestSummary
 from app.ingestion.kb import ingest_kb_articles
 
@@ -20,6 +25,16 @@ def ingest_kb(request: IngestRequest | None = None) -> IngestSummary:
 @router.post("/workflows/full-refresh", response_model=JobStartResponse)
 def start_full_refresh() -> JobStartResponse:
     return get_admin_job_manager().start_full_refresh()
+
+
+@router.post("/workflows/pull-remote-analysis", response_model=JobStartResponse)
+def start_pull_remote_analysis() -> JobStartResponse:
+    return get_admin_job_manager().start_pull_remote_analysis()
+
+
+@router.post("/workflows/publish-remote-analysis", response_model=JobStartResponse)
+def start_publish_remote_analysis() -> JobStartResponse:
+    return get_admin_job_manager().start_publish_remote_analysis()
 
 
 @router.get("/jobs/{job_id}", response_model=JobRunResponse)
@@ -41,6 +56,11 @@ def list_jobs(
 @router.get("/index-status", response_model=AdminIndexStatusResponse)
 def get_index_status() -> AdminIndexStatusResponse:
     return get_admin_index_status()
+
+
+@router.get("/remote-analysis-status", response_model=RemoteAnalysisStatusResponse)
+def remote_analysis_status() -> RemoteAnalysisStatusResponse:
+    return get_remote_analysis_status()
 
 
 @router.get("/jobs/{job_id}/stream")

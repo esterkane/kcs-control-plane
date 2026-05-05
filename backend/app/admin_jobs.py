@@ -19,6 +19,7 @@ from app.backfill.duplicate_embeddings import (
 from app.clustering.service import build_duplicate_cluster_service
 from app.config import ClusterMaterializationRequest
 from app.ingestion.kb import ingest_kb_articles
+from app.sync.analysis import build_remote_analysis_sync_service
 
 
 def _now_iso() -> str:
@@ -254,33 +255,36 @@ class AdminJobManager:
             self._append_log(job_id, level="error", message=f"Pipeline failed: {exc}")
             self._set_status(job_id, status="failed")
 
-    def start_full_refresh(self) -> JobStartResponse:
+    def _start_job(
+        self,
+        *,
+        kind: str,
+        runner_factory: Callable[[str], Callable[[str], None]],
+        reuse_running_job: bool = True,
+    ) -> JobStartResponse:
         with self._lock:
-            for job in self._jobs.values():
-                if job.kind == "full_kb_refresh" and job.status in {"queued", "running"}:
-                    return JobStartResponse(
-                        jobId=job.job_id,
-                        kind=job.kind,
-                        status=job.status,
-                        reusedExistingJob=True,
-                    )
+            if reuse_running_job:
+                for job in self._jobs.values():
+                    if job.kind == kind and job.status in {"queued", "running"}:
+                        return JobStartResponse(
+                            jobId=job.job_id,
+                            kind=job.kind,
+                            status=job.status,
+                            reusedExistingJob=True,
+                        )
 
             job_id = f"job-{uuid4().hex[:12]}"
             job = JobState(
                 job_id=job_id,
-                kind="full_kb_refresh",
+                kind=kind,
                 status="queued",
                 started_at=_now_iso(),
             )
             self._jobs[job_id] = job
 
-        start_step, resume_message = self._determine_resume_step()
-        if resume_message is not None:
-            self._append_log(job_id, level="info", message=resume_message)
-
         worker = threading.Thread(
             target=self._run_job_thread,
-            args=(job_id, lambda current_job_id: self._run_full_refresh(current_job_id, start_step=start_step)),
+            args=(job_id, runner_factory(job_id)),
             daemon=True,
         )
         with self._lock:
@@ -291,6 +295,73 @@ class AdminJobManager:
             kind=job.kind,
             status=job.status,
             reusedExistingJob=False,
+        )
+
+    def start_full_refresh(self) -> JobStartResponse:
+        start_step, resume_message = self._determine_resume_step()
+
+        def runner_factory(job_id: str) -> Callable[[str], None]:
+            if resume_message is not None:
+                self._append_log(job_id, level="info", message=resume_message)
+            return lambda current_job_id: self._run_full_refresh(current_job_id, start_step=start_step)
+
+        return self._start_job(kind="full_kb_refresh", runner_factory=runner_factory)
+
+    def _run_pull_remote_analysis(self, job_id: str) -> None:
+        try:
+            self._append_log(job_id, level="info", message="Starting remote analysis pull into local indices.")
+            summary = build_remote_analysis_sync_service().pull_remote_to_local(
+                progress_callback=lambda message: self._append_log(job_id, level="info", message=message),
+            )
+            self._append_log(
+                job_id,
+                level="info",
+                message=(
+                    "Remote analysis pull complete: "
+                    f"article_documents={summary.article_documents}, "
+                    f"chunk_documents={summary.chunk_documents}, "
+                    f"edge_documents={summary.edge_documents}, "
+                    f"cluster_documents={summary.cluster_documents}."
+                ),
+            )
+            self._set_status(job_id, status="succeeded")
+        except Exception as exc:
+            self._append_log(job_id, level="error", message=f"Pipeline failed: {exc}")
+            self._set_status(job_id, status="failed")
+
+    def _run_publish_remote_analysis(self, job_id: str) -> None:
+        try:
+            self._append_log(job_id, level="info", message="Starting remote analysis publish from local indices.")
+            summary = build_remote_analysis_sync_service().publish_local_to_remote(
+                progress_callback=lambda message: self._append_log(job_id, level="info", message=message),
+            )
+            self._append_log(
+                job_id,
+                level="info",
+                message=(
+                    "Remote analysis publish complete: "
+                    f"run_id={summary.remote_run_id}, "
+                    f"article_documents={summary.article_documents}, "
+                    f"chunk_documents={summary.chunk_documents}, "
+                    f"edge_documents={summary.edge_documents}, "
+                    f"cluster_documents={summary.cluster_documents}."
+                ),
+            )
+            self._set_status(job_id, status="succeeded")
+        except Exception as exc:
+            self._append_log(job_id, level="error", message=f"Pipeline failed: {exc}")
+            self._set_status(job_id, status="failed")
+
+    def start_pull_remote_analysis(self) -> JobStartResponse:
+        return self._start_job(
+            kind="pull_remote_analysis",
+            runner_factory=lambda _job_id: self._run_pull_remote_analysis,
+        )
+
+    def start_publish_remote_analysis(self) -> JobStartResponse:
+        return self._start_job(
+            kind="publish_remote_analysis",
+            runner_factory=lambda _job_id: self._run_publish_remote_analysis,
         )
 
     def _run_job_thread(self, job_id: str, runner: Callable[[str], None]) -> None:

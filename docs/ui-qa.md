@@ -14,6 +14,15 @@ Use it before pushing to a shared remote.
 - Confirm `Content and dedupe backfill completeness` loads.
 - Confirm the article/chunk counts render.
 - Confirm the latest full refresh job and live logs can load.
+- Confirm the remote sync controls render:
+  - `Pull published remote analysis`
+  - `Publish local analysis to remote`
+- Confirm the remote analysis status panel renders:
+  - source index
+  - latest published run
+  - local sync run
+  - local vs remote doc counts
+- If the local workspace is older than the latest remote published run, confirm the stale warning banner appears.
 
 ### Cluster Explorer
 
@@ -90,6 +99,10 @@ Impact:
   - usually indicates a backend PATCH issue or stale frontend state
 - cluster explorer shows old mock data instead of persisted cluster data
   - indicates the live API path regressed
+- remote analysis status claims the source index is not protected
+  - indicates a dangerous alias/source overlap configuration
+- local and remote counts diverge unexpectedly after a pull
+  - can indicate failed remote snapshot copy or stale local indices
 
 ## Recommended Manual Test Set
 
@@ -104,3 +117,7 @@ Run these checks after major duplicate-pipeline or UI changes:
    - a keyword query
 6. Confirm search results can jump into cluster detail.
 7. Reload the page and confirm cluster review-state still reflects the saved backend value.
+8. If remote analysis is configured:
+   - pull published remote analysis
+   - confirm local cluster count matches the published remote snapshot
+   - publish local analysis and confirm the job completes without touching the source KB index.

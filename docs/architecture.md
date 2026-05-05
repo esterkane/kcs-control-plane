@@ -26,6 +26,10 @@ kcs-kb-duplicate-edges-v1"]
   G --> H["Duplicate cluster materialization
 kcs-kb-duplicate-clusters-v1"]
   H --> I["Review UI"]
+  C -. "optional publish/pull" .- J["Remote analysis article alias"]
+  F -. "optional publish/pull" .- K["Remote analysis chunk alias"]
+  G -. "optional publish/pull" .- L["Remote analysis edge alias"]
+  H -. "optional publish/pull" .- M["Remote analysis cluster alias"]
 ```
 
 ## Main Components
@@ -70,6 +74,33 @@ The modern data path is API-backed for:
 - cluster review-state updates
 
 Some older mock/demo compare flows still exist as fallback UI code.
+
+## Remote Cluster Roles
+
+The architecture now distinguishes two remote roles:
+
+- `remote source cluster`
+  - read-only source KB content
+- `remote analysis cluster`
+  - published duplicate-analysis snapshots
+
+They may be the same physical Elasticsearch deployment, but they must not share the same index or alias names.
+
+The source KB index stays read-only.
+Published analysis uses separate aliases such as:
+
+- `kcs-kb-analysis-articles-v1`
+- `kcs-kb-analysis-article-chunks-v1`
+- `kcs-kb-analysis-duplicate-edges-v1`
+- `kcs-kb-analysis-duplicate-clusters-v1`
+
+The Admin UI now surfaces:
+
+- alias names
+- alias backing indices
+- latest published remote run metadata
+- latest local sync metadata
+- stale-local warnings when the workspace is behind the published remote snapshot
 
 ## Data Model
 
@@ -183,6 +214,37 @@ Steps:
 3. rebuild/embed chunks
 4. materialize duplicate edges and clusters
 
+## Pull And Publish Workflows
+
+### Pull published analysis into local
+
+Admin workflow:
+
+- `POST /admin/workflows/pull-remote-analysis`
+
+Behavior:
+
+- read the remote published analysis aliases
+- overwrite the local working indices with that snapshot
+- preserve embeddings, edges, and clusters as stored remotely
+
+This is intended for new users or fresh local environments.
+
+### Publish local analysis to remote
+
+Admin workflow:
+
+- `POST /admin/workflows/publish-remote-analysis`
+
+Behavior:
+
+1. create versioned remote staging indices
+2. copy local working indices into them
+3. validate document counts
+4. atomically switch the remote analysis aliases
+
+This avoids exposing half-finished local materialization runs to other users.
+
 ## Resilience And Resume Strategy
 
 The current architecture is designed to avoid losing expensive work.
@@ -242,7 +304,7 @@ Not yet part of the design:
 
 - canonical article generation
 - article merge authoring
-- remote source write-back
+- remote source content write-back
 - review audit trail / notes
 - user/permission model
 

@@ -15,6 +15,7 @@ import type {
   LiveClusterDetail,
   LiveClusterListResponse,
   PageId,
+  RemoteAnalysisStatus,
 } from "./types";
 
 type PageDefinition = {
@@ -81,6 +82,16 @@ function isAdminIndexStatus(payload: unknown): payload is AdminIndexStatus {
     && typeof candidate.chunkIndex === "object" && candidate.chunkIndex !== null;
 }
 
+function isRemoteAnalysisStatus(payload: unknown): payload is RemoteAnalysisStatus {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return typeof candidate.enabled === "boolean"
+    && typeof candidate.aliases === "object"
+    && candidate.aliases !== null;
+}
+
 function mergePipelineLogs(
   currentLogs: AdminPipelineRun["logs"],
   nextEntries: AdminPipelineRun["logs"],
@@ -100,9 +111,11 @@ export default function App() {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [activeRun, setActiveRun] = useState<AdminPipelineRun | null>(null);
   const [indexStatus, setIndexStatus] = useState<AdminIndexStatus | null>(null);
+  const [remoteAnalysisStatus, setRemoteAnalysisStatus] = useState<RemoteAnalysisStatus | null>(null);
   const [isStartingPipeline, setIsStartingPipeline] = useState(false);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [indexStatusError, setIndexStatusError] = useState<string | null>(null);
+  const [remoteAnalysisStatusError, setRemoteAnalysisStatusError] = useState<string | null>(null);
   const [liveClusters, setLiveClusters] = useState<LiveClusterListResponse["items"] | null>(null);
   const [liveClusterCount, setLiveClusterCount] = useState(0);
   const [liveClustersError, setLiveClustersError] = useState<string | null>(null);
@@ -199,7 +212,7 @@ export default function App() {
           window.localStorage.removeItem(activePipelineJobStorageKey);
         }
 
-        const response = await fetch(`${apiBaseUrl}/admin/jobs?kind=full_kb_refresh`);
+        const response = await fetch(`${apiBaseUrl}/admin/jobs`);
         if (!response.ok) {
           return;
         }
@@ -347,9 +360,36 @@ export default function App() {
       }
     }
 
+    async function loadRemoteAnalysisStatus(): Promise<void> {
+      try {
+        const response = await fetch(`${apiBaseUrl}/admin/remote-analysis-status`);
+        if (!response.ok) {
+          throw new Error(`Failed to load remote analysis status: ${response.status}`);
+        }
+        const payload = await response.json();
+        if (!isRemoteAnalysisStatus(payload)) {
+          throw new Error("Remote analysis status response was malformed.");
+        }
+        if (cancelled) {
+          return;
+        }
+        setRemoteAnalysisStatus(payload);
+        setRemoteAnalysisStatusError(null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setRemoteAnalysisStatusError(
+          error instanceof Error ? error.message : "Failed to load remote analysis status.",
+        );
+      }
+    }
+
     void loadIndexStatus();
+    void loadRemoteAnalysisStatus();
     const intervalId = window.setInterval(() => {
       void loadIndexStatus();
+      void loadRemoteAnalysisStatus();
     }, 15000);
 
     return () => {
@@ -359,14 +399,18 @@ export default function App() {
   }, [apiBaseUrl, state.activePageId]);
 
   async function handleRunFullPipeline(): Promise<void> {
+    await handleStartAdminWorkflow("/admin/workflows/full-refresh", "Failed to start pipeline.");
+  }
+
+  async function handleStartAdminWorkflow(path: string, fallbackError: string): Promise<void> {
     setIsStartingPipeline(true);
     setPipelineError(null);
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/workflows/full-refresh`, {
+      const response = await fetch(`${apiBaseUrl}${path}`, {
         method: "POST",
       });
       if (!response.ok) {
-        throw new Error(`Failed to start pipeline: ${response.status}`);
+        throw new Error(`Failed to start workflow: ${response.status}`);
       }
       const payload = (await response.json()) as {
         jobId: string;
@@ -379,7 +423,7 @@ export default function App() {
       };
       connectToJobStream(initialRun);
     } catch (error) {
-      setPipelineError(error instanceof Error ? error.message : "Failed to start pipeline.");
+      setPipelineError(error instanceof Error ? error.message : fallbackError);
     } finally {
       setIsStartingPipeline(false);
     }
@@ -506,6 +550,8 @@ export default function App() {
             activeRun={activeRun}
             indexStatus={indexStatus}
             indexStatusError={indexStatusError}
+            remoteAnalysisStatus={remoteAnalysisStatus}
+            remoteAnalysisStatusError={remoteAnalysisStatusError}
             isStartingPipeline={isStartingPipeline}
             jobLogs={state.jobLogs}
             pipelineError={pipelineError}
@@ -513,6 +559,18 @@ export default function App() {
               void handleRunFullPipeline();
             }}
             onRunJob={(jobKind) => dispatch({ type: "runJob", jobKind })}
+            onPullRemoteAnalysis={() => {
+              void handleStartAdminWorkflow(
+                "/admin/workflows/pull-remote-analysis",
+                "Failed to start remote analysis pull.",
+              );
+            }}
+            onPublishRemoteAnalysis={() => {
+              void handleStartAdminWorkflow(
+                "/admin/workflows/publish-remote-analysis",
+                "Failed to start remote analysis publish.",
+              );
+            }}
           />
         );
       default:

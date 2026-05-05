@@ -266,7 +266,7 @@ describe("workflow-first frontend", () => {
           json: async () => indexStatusResponse,
         };
       }
-      if (url.includes("/admin/jobs?kind=full_kb_refresh")) {
+      if (url.endsWith("/admin/jobs")) {
         return {
           ok: true,
           json: async () => [

@@ -11,6 +11,7 @@ The project is currently in a strong local-review state:
 - duplicate cluster materialization works
 - cluster review-state persistence works
 - the main review UI is live against backend APIs
+- remote analysis pull/publish workflows exist for sharing published analysis snapshots
 
 The system is not yet an authoring or publishing tool.
 
@@ -42,6 +43,15 @@ The system is not yet an authoring or publishing tool.
 ### UI
 
 - live admin pipeline controls
+- live admin controls for:
+  - full refresh
+  - pull published remote analysis
+  - publish local analysis to remote
+- live remote analysis status panel with:
+  - alias visibility
+  - latest published run visibility
+  - local sync visibility
+  - stale local snapshot warning
 - live index completeness view
 - live cluster list
 - live cluster detail
@@ -60,13 +70,27 @@ Not implemented:
 
 - generate a new canonical KB draft from an approved cluster
 - merge source articles into one editable article
-- push the result back to the remote/source KB
+- push the result back into the remote/source KB content index
 
 Why:
 
 - this needs stronger business rules
 - it changes source-of-truth ownership
 - the current milestone is review and triage, not publishing
+
+### Multi-user coordination
+
+Not implemented:
+
+- publish lease / lock for the remote analysis cluster
+- cleanup/retention policy for old staged remote indices
+- remote diff-aware incremental edge/cluster publish
+
+Why:
+
+- phase 1 focuses on safe snapshot pull/publish
+- alias promotion is enough to share stable results now
+- conflict management can follow once multi-user operational patterns are clearer
 
 ### Full reviewer workflow
 
@@ -107,6 +131,17 @@ Why:
 - this improves hybrid search quality
 - it can be slower than article-ID search because the query has to be embedded at request time
 
+### Shared remote publication is snapshot-based
+
+- remote publication currently promotes full staged analysis snapshots
+- it is not yet a fine-grained multi-writer incremental publish model
+
+Impact:
+
+- safer shared visibility
+- simpler reasoning
+- more remote index churn than a future incremental model
+
 ### Review-state semantics
 
 - persisted review states affect the duplicate cluster only
@@ -125,7 +160,7 @@ It does not yet mean:
 
 - reviewers can publish a canonical article
 - the system will automatically merge articles
-- the source KB changes as a result of review decisions
+- the source KB content changes as a result of review decisions
 
 ## Recommended Next Steps
 
@@ -133,4 +168,5 @@ It does not yet mean:
 2. Add cluster pagination/filtering/search beyond the first result page.
 3. Add a live side-by-side evidence view for persisted clusters.
 4. Add approved-cluster draft generation for canonical article authoring.
-5. Add explicit export or remote write-back workflows once authoring rules are agreed.
+5. Add remote publish locking and staged-index retention for the shared analysis cluster.
+6. Add explicit source-content write-back workflows once authoring rules are agreed.

@@ -44,6 +44,19 @@ class TargetElasticsearchConfig(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class RemoteAnalysisElasticsearchConfig(BaseModel):
+    url: str
+    api_key_configured: bool = Field(alias="apiKeyConfigured")
+    enabled: bool
+    normalized_alias: str = Field(alias="normalizedAlias")
+    chunk_alias: str = Field(alias="chunkAlias")
+    duplicate_edge_alias: str = Field(alias="duplicateEdgeAlias")
+    duplicate_cluster_alias: str = Field(alias="duplicateClusterAlias")
+    metadata_index: str = Field(alias="metadataIndex")
+
+    model_config = {"populate_by_name": True}
+
+
 class EmbeddingEndpointConfig(BaseModel):
     provider: str
     url: str
@@ -68,6 +81,7 @@ class EffectiveConfig(BaseModel):
     providers: ProviderConfig
     source_elasticsearch: SourceElasticsearchConfig = Field(alias="sourceElasticsearch")
     target_elasticsearch: TargetElasticsearchConfig = Field(alias="targetElasticsearch")
+    remote_analysis_elasticsearch: RemoteAnalysisElasticsearchConfig = Field(alias="remoteAnalysisElasticsearch")
     embedding_endpoints: list[EmbeddingEndpointConfig] = Field(alias="embeddingEndpoints")
     reranker_endpoints: list[RerankerEndpointConfig] = Field(alias="rerankerEndpoints")
     explanation_provider: str = Field(alias="explanationProvider")
@@ -114,6 +128,18 @@ class ClusterReviewUpdateRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class AnalysisSyncSummary(BaseModel):
+    mode: str
+    remote_run_id: str | None = Field(default=None, alias="remoteRunId")
+    article_documents: int = Field(alias="articleDocuments")
+    chunk_documents: int = Field(alias="chunkDocuments")
+    edge_documents: int = Field(alias="edgeDocuments")
+    cluster_documents: int = Field(alias="clusterDocuments")
+    remote_aliases: dict[str, str] = Field(alias="remoteAliases")
+
+    model_config = {"populate_by_name": True}
+
+
 def get_source_es_url() -> str:
     return os.getenv("SOURCE_ES_URL", "")
 
@@ -144,6 +170,42 @@ def get_target_duplicate_edge_index() -> str:
 
 def get_target_duplicate_cluster_index() -> str:
     return "kcs-kb-duplicate-clusters-v1"
+
+
+def get_remote_analysis_es_url() -> str:
+    return os.getenv("REMOTE_ANALYSIS_ES_URL", "")
+
+
+def get_remote_analysis_es_api_key() -> str:
+    return os.getenv("REMOTE_ANALYSIS_ES_API_KEY", "")
+
+
+def is_remote_analysis_enabled() -> bool:
+    return bool(get_remote_analysis_es_url().strip())
+
+
+def get_remote_analysis_normalized_alias() -> str:
+    return os.getenv("REMOTE_ANALYSIS_NORMALIZED_ALIAS", "kcs-kb-analysis-articles-v1")
+
+
+def get_remote_analysis_chunk_alias() -> str:
+    return os.getenv("REMOTE_ANALYSIS_CHUNK_ALIAS", "kcs-kb-analysis-article-chunks-v1")
+
+
+def get_remote_analysis_duplicate_edge_alias() -> str:
+    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_EDGE_ALIAS", "kcs-kb-analysis-duplicate-edges-v1")
+
+
+def get_remote_analysis_duplicate_cluster_alias() -> str:
+    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_CLUSTER_ALIAS", "kcs-kb-analysis-duplicate-clusters-v1")
+
+
+def get_remote_analysis_metadata_index() -> str:
+    return os.getenv("REMOTE_ANALYSIS_METADATA_INDEX", "kcs-kb-analysis-sync-state-v1")
+
+
+def get_local_analysis_metadata_index() -> str:
+    return os.getenv("LOCAL_ANALYSIS_METADATA_INDEX", "kcs-kb-analysis-local-sync-state-v1")
 
 
 def get_environment() -> str:
@@ -255,6 +317,16 @@ def get_effective_config() -> EffectiveConfig:
             chunkIndex=get_target_chunk_index(),
             duplicateEdgeIndex=get_target_duplicate_edge_index(),
             duplicateClusterIndex=get_target_duplicate_cluster_index(),
+        ),
+        remoteAnalysisElasticsearch=RemoteAnalysisElasticsearchConfig(
+            url=get_remote_analysis_es_url(),
+            apiKeyConfigured=bool(get_remote_analysis_es_api_key()),
+            enabled=is_remote_analysis_enabled(),
+            normalizedAlias=get_remote_analysis_normalized_alias(),
+            chunkAlias=get_remote_analysis_chunk_alias(),
+            duplicateEdgeAlias=get_remote_analysis_duplicate_edge_alias(),
+            duplicateClusterAlias=get_remote_analysis_duplicate_cluster_alias(),
+            metadataIndex=get_remote_analysis_metadata_index(),
         ),
         embeddingEndpoints=[
             EmbeddingEndpointConfig(

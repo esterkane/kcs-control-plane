@@ -29,6 +29,42 @@ def test_start_full_refresh_endpoint(monkeypatch) -> None:
     assert response.json()["jobId"] == "job-123"
 
 
+def test_start_pull_remote_analysis_endpoint(monkeypatch) -> None:
+    class FakeManager:
+        def start_pull_remote_analysis(self):
+            return {
+                "jobId": "job-pull",
+                "kind": "pull_remote_analysis",
+                "status": "queued",
+                "reusedExistingJob": False,
+            }
+
+    monkeypatch.setattr("app.api.routes.admin.get_admin_job_manager", lambda: FakeManager())
+
+    response = client.post("/admin/workflows/pull-remote-analysis")
+
+    assert response.status_code == 200
+    assert response.json()["jobId"] == "job-pull"
+
+
+def test_start_publish_remote_analysis_endpoint(monkeypatch) -> None:
+    class FakeManager:
+        def start_publish_remote_analysis(self):
+            return {
+                "jobId": "job-publish",
+                "kind": "publish_remote_analysis",
+                "status": "queued",
+                "reusedExistingJob": False,
+            }
+
+    monkeypatch.setattr("app.api.routes.admin.get_admin_job_manager", lambda: FakeManager())
+
+    response = client.post("/admin/workflows/publish-remote-analysis")
+
+    assert response.status_code == 200
+    assert response.json()["jobId"] == "job-publish"
+
+
 def test_get_job_endpoint(monkeypatch) -> None:
     class FakeManager:
         def get_job(self, job_id: str):
@@ -108,6 +144,73 @@ def test_get_index_status_endpoint(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["articleIndex"]["indexName"] == "kcs-kb-articles-v1"
     assert response.json()["chunkIndex"]["embeddingPercentage"] == 100.0
+
+
+def test_get_remote_analysis_status_endpoint(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.routes.admin.get_remote_analysis_status",
+        lambda: {
+            "enabled": True,
+            "urlConfigured": True,
+            "apiKeyConfigured": True,
+            "sourceIndex": "search-knowledge-articles-prod-v1",
+            "sourceIndexProtected": True,
+            "metadataIndex": "kcs-kb-analysis-sync-state-v1",
+            "localMetadataIndex": "kcs-kb-analysis-local-sync-state-v1",
+            "localDocumentCounts": {
+                "articles": 10,
+                "chunks": 20,
+                "edges": 30,
+                "clusters": 40,
+            },
+            "aliases": {
+                "articles": {
+                    "alias": "kcs-kb-analysis-articles-v1",
+                    "backingIndices": ["kcs-kb-analysis-articles-v1-run-1"],
+                    "documentCount": 10,
+                },
+                "chunks": {
+                    "alias": "kcs-kb-analysis-article-chunks-v1",
+                    "backingIndices": ["kcs-kb-analysis-article-chunks-v1-run-1"],
+                    "documentCount": 20,
+                },
+                "edges": {
+                    "alias": "kcs-kb-analysis-duplicate-edges-v1",
+                    "backingIndices": ["kcs-kb-analysis-duplicate-edges-v1-run-1"],
+                    "documentCount": 30,
+                },
+                "clusters": {
+                    "alias": "kcs-kb-analysis-duplicate-clusters-v1",
+                    "backingIndices": ["kcs-kb-analysis-duplicate-clusters-v1-run-1"],
+                    "documentCount": 40,
+                },
+            },
+            "latestPublishedRun": {
+                "runId": "run-1",
+                "publishedAt": "2026-05-05T12:00:00Z",
+                "embeddingProvider": "local",
+                "documentCounts": {
+                    "articles": 10,
+                    "chunks": 20,
+                    "edges": 30,
+                    "clusters": 40,
+                },
+            },
+            "localSync": {
+                "remoteRunId": "run-1",
+                "publishedAt": "2026-05-05T12:00:00Z",
+                "syncedAt": "2026-05-05T12:05:00Z",
+                "embeddingProvider": "local",
+            },
+            "localSnapshotStale": False,
+        },
+    )
+
+    response = client.get("/admin/remote-analysis-status")
+
+    assert response.status_code == 200
+    assert response.json()["sourceIndexProtected"] is True
+    assert response.json()["aliases"]["clusters"]["documentCount"] == 40
 
 
 def test_stream_job_endpoint(monkeypatch) -> None:

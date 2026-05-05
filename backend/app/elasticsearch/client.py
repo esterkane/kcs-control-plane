@@ -243,6 +243,13 @@ class ElasticsearchClient:
             expected_statuses={200},
         )
 
+    def delete_index(self, *, index: str) -> None:
+        self._request_json(
+            "DELETE",
+            f"/{index}",
+            expected_statuses={200},
+        )
+
     def put_mapping(self, *, index: str, mapping: dict[str, Any]) -> None:
         self._request_json(
             "PUT",
@@ -326,3 +333,61 @@ class ElasticsearchClient:
             json_body={"query": query},
             expected_statuses={200},
         )
+
+    def get_alias_indices(self, *, alias: str) -> list[str]:
+        response = self.transport.request(
+            "GET",
+            f"{self.base_url}/_alias/{alias}",
+            headers=self._headers(),
+        )
+        if response.status_code == 404:
+            return []
+        if response.status_code != 200:
+            raise ElasticsearchClientError(
+                f"Unexpected Elasticsearch response {response.status_code} for GET /_alias/{alias}: {response.text}"
+            )
+        payload = response.json_body or {}
+        return sorted(index_name for index_name in payload if isinstance(index_name, str))
+
+    def update_aliases(self, *, actions: list[dict[str, Any]]) -> None:
+        self._request_json(
+            "POST",
+            "/_aliases",
+            json_body={"actions": actions},
+            expected_statuses={200},
+        )
+
+    def iterate_documents(
+        self,
+        *,
+        index: str,
+        page_size: int = 250,
+        source_includes: list[str] | None = None,
+    ) -> list[tuple[str, dict[str, Any]]]:
+        documents: list[tuple[str, dict[str, Any]]] = []
+        pit_id = self.open_point_in_time(index=index, keep_alive="1m")
+        search_after: list[Any] | None = None
+        try:
+            while True:
+                page = self.search_with_pit(
+                    pit_id=pit_id,
+                    keep_alive="1m",
+                    size=page_size,
+                    source_includes=source_includes,
+                    search_after=search_after,
+                )
+                pit_id = page.pit_id
+                if not page.hits:
+                    break
+                for hit in page.hits:
+                    source = hit.get("_source")
+                    document_id = hit.get("_id")
+                    if isinstance(document_id, str) and isinstance(source, dict):
+                        documents.append((document_id, source))
+                last_sort = page.hits[-1].get("sort")
+                search_after = last_sort if isinstance(last_sort, list) else None
+                if search_after is None:
+                    break
+        finally:
+            self.close_point_in_time(pit_id=pit_id)
+        return documents

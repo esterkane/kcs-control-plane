@@ -155,6 +155,46 @@ export type AdminIndexStatus = {
   };
 };
 
+export type RemoteAnalysisAliasStatus = {
+  alias: string;
+  backingIndices: string[];
+  documentCount: number;
+};
+
+export type RemotePublishedRunStatus = {
+  runId: string;
+  publishedAt: string;
+  embeddingProvider: string;
+  documentCounts: Record<string, number>;
+};
+
+export type LocalRemoteSyncStatus = {
+  remoteRunId: string;
+  publishedAt: string;
+  syncedAt: string;
+  embeddingProvider: string;
+};
+
+export type RemoteAnalysisStatus = {
+  enabled: boolean;
+  urlConfigured: boolean;
+  apiKeyConfigured: boolean;
+  sourceIndex: string;
+  sourceIndexProtected: boolean;
+  metadataIndex: string;
+  localMetadataIndex: string;
+  localDocumentCounts: Record<string, number>;
+  aliases: {
+    articles: RemoteAnalysisAliasStatus;
+    chunks: RemoteAnalysisAliasStatus;
+    edges: RemoteAnalysisAliasStatus;
+    clusters: RemoteAnalysisAliasStatus;
+  };
+  latestPublishedRun: RemotePublishedRunStatus | null;
+  localSync: LocalRemoteSyncStatus | null;
+  localSnapshotStale: boolean;
+};
+
 export type LiveClusterSummary = {
   clusterId: string;
   articleIds: string[];
