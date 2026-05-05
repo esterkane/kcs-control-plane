@@ -93,6 +93,8 @@ Remote Elasticsearch roles can now be separated:
 - `REMOTE_ANALYSIS_*`
   shared published duplicate-analysis indices
 
+If `REMOTE_ANALYSIS_ES_URL` and `REMOTE_ANALYSIS_ES_API_KEY` are left empty, the app reuses the source-cluster connection and publishes the analysis aliases into that same remote Elasticsearch cluster.
+
 ## Quick Start
 
 1. Copy local config:
@@ -136,6 +138,7 @@ make up
 - keep `SOURCE_ES_INDEX` pointed at the existing source KB index
 - keep `REMOTE_ANALYSIS_*` pointed at a separate analysis namespace
 - do not reuse the source index name for the remote analysis aliases
+- if the source KB and analysis aliases live in the same remote Elasticsearch cluster, you can leave `REMOTE_ANALYSIS_ES_URL` and `REMOTE_ANALYSIS_ES_API_KEY` empty
 
 6. Stop the stack:
 

@@ -150,6 +150,17 @@ Role:
 
 - shared published duplicate-analysis snapshot for multiple users
 
+Fallback behavior:
+
+- if `REMOTE_ANALYSIS_ES_URL` is not set, the app falls back to `SOURCE_ES_URL`
+- if `REMOTE_ANALYSIS_ES_API_KEY` is not set, the app falls back to `SOURCE_ES_API_KEY`
+
+This is useful when:
+
+- the source KB and published analysis live in the same physical remote Elasticsearch cluster
+
+It does **not** mean analysis writes go into the source KB index. They still go only to the separate remote analysis aliases.
+
 Why separate aliases exist:
 
 - so users can share embeddings, edges, and clusters

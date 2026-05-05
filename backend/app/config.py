@@ -173,11 +173,11 @@ def get_target_duplicate_cluster_index() -> str:
 
 
 def get_remote_analysis_es_url() -> str:
-    return os.getenv("REMOTE_ANALYSIS_ES_URL", "")
+    return os.getenv("REMOTE_ANALYSIS_ES_URL", "").strip() or get_source_es_url()
 
 
 def get_remote_analysis_es_api_key() -> str:
-    return os.getenv("REMOTE_ANALYSIS_ES_API_KEY", "")
+    return os.getenv("REMOTE_ANALYSIS_ES_API_KEY", "").strip() or get_source_es_api_key()
 
 
 def is_remote_analysis_enabled() -> bool:
