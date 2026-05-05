@@ -285,6 +285,42 @@ class ElasticsearchClient:
         if response.get("errors") is True:
             raise ElasticsearchClientError(f"Bulk indexing reported errors: {response}")
 
+    def get_document(self, *, index: str, document_id: str) -> dict[str, Any] | None:
+        response = self.transport.request(
+            "GET",
+            f"{self.base_url}/{index}/_doc/{document_id}",
+            headers=self._headers(),
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise ElasticsearchClientError(
+                f"Unexpected Elasticsearch response {response.status_code} for GET /{index}/_doc/{document_id}: {response.text}"
+            )
+        payload = response.json_body or {}
+        source = payload.get("_source")
+        return source if isinstance(source, dict) else None
+
+    def create_document(self, *, index: str, document_id: str, document: dict[str, Any]) -> None:
+        self._request_json(
+            "PUT",
+            f"/{index}/_create/{document_id}",
+            json_body=sanitize_jsonish(document),
+            expected_statuses={201},
+        )
+
+    def delete_document(self, *, index: str, document_id: str) -> None:
+        response = self.transport.request(
+            "DELETE",
+            f"{self.base_url}/{index}/_doc/{document_id}",
+            headers=self._headers(),
+        )
+        if response.status_code in {200, 404}:
+            return
+        raise ElasticsearchClientError(
+            f"Unexpected Elasticsearch response {response.status_code} for DELETE /{index}/_doc/{document_id}: {response.text}"
+        )
+
     def count_documents(self, *, index: str, query: dict[str, Any]) -> int:
         response = self._request_json(
             "POST",

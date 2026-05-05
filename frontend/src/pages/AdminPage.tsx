@@ -60,6 +60,12 @@ export function AdminPage({
   onPullRemoteAnalysis,
   onPublishRemoteAnalysis,
 }: AdminPageProps) {
+  const shouldWarnFirstPull = Boolean(
+    remoteAnalysisStatus?.enabled
+      && remoteAnalysisStatus.latestPublishedRun !== null
+      && remoteAnalysisStatus.localSync === null,
+  );
+  const publishBlocked = Boolean(remoteAnalysisStatus?.publishBlockedReason);
   const compareTextCoverage = indexStatus?.articleIndex.coverage.find(
     (item) => item.fieldName === "compare_text",
   );
@@ -97,6 +103,22 @@ export function AdminPage({
           </div>
           <Badge tone="neutral">{apiBaseUrl}</Badge>
         </div>
+        {shouldWarnFirstPull ? (
+          <div className="full-pipeline-card" role="alert" aria-live="polite">
+            <div>
+              <h4>Pull shared data first</h4>
+              <p className="error-copy">
+                A published remote analysis snapshot already exists, but this local workspace has not
+                pulled it yet. On first install, use <strong>Pull published remote analysis</strong> before
+                running the full pipeline. Do not start a full local rebuild unless you intentionally want
+                to recalculate from scratch.
+              </p>
+            </div>
+            <div className="panel-actions">
+              <Badge tone="accent">First-time setup warning</Badge>
+            </div>
+          </div>
+        ) : null}
         <div className="full-pipeline-card">
           <div>
             <h4>Run full KB pipeline</h4>
@@ -153,11 +175,19 @@ export function AdminPage({
               type="button"
               className="primary-button"
               onClick={onPublishRemoteAnalysis}
-              disabled={isStartingPipeline || activeRun?.status === "running" || activeRun?.status === "queued"}
+              disabled={
+                isStartingPipeline
+                || activeRun?.status === "running"
+                || activeRun?.status === "queued"
+                || publishBlocked
+              }
             >
               Publish local analysis to remote
             </button>
           </div>
+          {remoteAnalysisStatus?.publishBlockedReason ? (
+            <p className="error-copy">{remoteAnalysisStatus.publishBlockedReason}</p>
+          ) : null}
         </div>
       </section>
 
@@ -179,6 +209,14 @@ export function AdminPage({
               <p className="error-copy">
                 Local working indices are older than the latest published remote analysis snapshot.
                 Pull the published remote analysis before reviewing or calculating new deltas.
+              </p>
+            ) : null}
+            {remoteAnalysisStatus.publishLock ? (
+              <p className="error-copy">
+                A remote publish lock is active for <strong>{remoteAnalysisStatus.publishLock.runId}</strong>.
+                {remoteAnalysisStatus.publishLock.expiresAt
+                  ? ` Expected expiry: ${remoteAnalysisStatus.publishLock.expiresAt}.`
+                  : ""}
               </p>
             ) : null}
             <div className="status-summary-grid">
@@ -212,6 +250,15 @@ export function AdminPage({
                   {remoteAnalysisStatus.localSync
                     ? `${remoteAnalysisStatus.localSync.embeddingProvider} synced at ${remoteAnalysisStatus.localSync.syncedAt}`
                     : "No local remote-analysis sync recorded yet."}
+                </p>
+              </article>
+              <article className="status-summary-card">
+                <span className="status-label">Publish lock</span>
+                <strong>{remoteAnalysisStatus.publishLock?.runId ?? "none"}</strong>
+                <p>
+                  {remoteAnalysisStatus.publishLock
+                    ? `Held until ${remoteAnalysisStatus.publishLock.expiresAt ?? "unknown expiry"}.`
+                    : "No active remote publish lock."}
                 </p>
               </article>
             </div>

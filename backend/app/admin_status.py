@@ -20,6 +20,7 @@ from app.config import (
     is_remote_analysis_enabled,
 )
 from app.elasticsearch.client import ElasticsearchClient
+from app.sync.analysis import PUBLISH_LOCK_DOCUMENT_ID
 
 
 class CoverageStat(BaseModel):
@@ -86,6 +87,14 @@ class LocalRemoteSyncStatus(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class RemotePublishLockStatus(BaseModel):
+    run_id: str = Field(alias="runId")
+    acquired_at: str | None = Field(default=None, alias="acquiredAt")
+    expires_at: str | None = Field(default=None, alias="expiresAt")
+
+    model_config = {"populate_by_name": True}
+
+
 class RemoteAnalysisStatusResponse(BaseModel):
     enabled: bool
     url_configured: bool = Field(alias="urlConfigured")
@@ -99,6 +108,8 @@ class RemoteAnalysisStatusResponse(BaseModel):
     latest_published_run: RemotePublishedRunStatus | None = Field(default=None, alias="latestPublishedRun")
     local_sync: LocalRemoteSyncStatus | None = Field(default=None, alias="localSync")
     local_snapshot_stale: bool = Field(alias="localSnapshotStale")
+    publish_lock: RemotePublishLockStatus | None = Field(default=None, alias="publishLock")
+    publish_blocked_reason: str | None = Field(default=None, alias="publishBlockedReason")
 
     model_config = {"populate_by_name": True}
 
@@ -220,6 +231,8 @@ def get_remote_analysis_status() -> RemoteAnalysisStatusResponse:
             latestPublishedRun=None,
             localSync=None,
             localSnapshotStale=False,
+            publishLock=None,
+            publishBlockedReason=None,
         )
 
     local_client = ElasticsearchClient(base_url=get_target_es_url())
@@ -273,6 +286,20 @@ def get_remote_analysis_status() -> RemoteAnalysisStatusResponse:
                         },
                     )
 
+    publish_lock: RemotePublishLockStatus | None = None
+    if client.index_exists(index=metadata_index):
+        lock_source = client.get_document(index=metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+        if isinstance(lock_source, dict):
+            run_id = lock_source.get("run_id")
+            acquired_at = lock_source.get("acquired_at")
+            expires_at = lock_source.get("expires_at")
+            if isinstance(run_id, str):
+                publish_lock = RemotePublishLockStatus(
+                    runId=run_id,
+                    acquiredAt=acquired_at if isinstance(acquired_at, str) else None,
+                    expiresAt=expires_at if isinstance(expires_at, str) else None,
+                )
+
     local_document_counts = {
         "articles": local_client.count_documents(index=get_target_es_index(), query={"match_all": {}})
         if local_client.index_exists(index=get_target_es_index())
@@ -323,6 +350,18 @@ def get_remote_analysis_status() -> RemoteAnalysisStatusResponse:
     elif latest_run is not None and local_sync is None:
         local_snapshot_stale = True
 
+    publish_blocked_reason: str | None = None
+    if publish_lock is not None:
+        publish_blocked_reason = (
+            "A remote analysis publish is already in progress. "
+            f"Lock holder: {publish_lock.run_id}."
+        )
+    elif local_snapshot_stale:
+        publish_blocked_reason = (
+            "Local working indices are older than the latest published remote analysis snapshot. "
+            "Pull published remote analysis before publishing local calculations."
+        )
+
     return RemoteAnalysisStatusResponse(
         enabled=True,
         urlConfigured=True,
@@ -336,4 +375,6 @@ def get_remote_analysis_status() -> RemoteAnalysisStatusResponse:
         latestPublishedRun=latest_run,
         localSync=local_sync,
         localSnapshotStale=local_snapshot_stale,
+        publishLock=publish_lock,
+        publishBlockedReason=publish_blocked_reason,
     )

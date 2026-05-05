@@ -208,6 +208,15 @@ def get_local_analysis_metadata_index() -> str:
     return os.getenv("LOCAL_ANALYSIS_METADATA_INDEX", "kcs-kb-analysis-local-sync-state-v1")
 
 
+def get_remote_analysis_publish_lock_seconds() -> int:
+    raw = os.getenv("REMOTE_ANALYSIS_PUBLISH_LOCK_SECONDS", "1800").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return 1800
+    return max(value, 60)
+
+
 def get_environment() -> str:
     return os.getenv("APP_ENV", "development")
 

@@ -13,6 +13,7 @@ The project is currently in a strong local-review state:
 - the main review UI is live against backend APIs
 - remote analysis pull/publish workflows exist for sharing published analysis snapshots
 - failed remote publish runs now clean up the staged indices they created
+- remote publish now takes a lease and blocks stale local snapshots before promotion
 
 The system is not yet an authoring or publishing tool.
 
@@ -53,6 +54,7 @@ The system is not yet an authoring or publishing tool.
   - latest published run visibility
   - local sync visibility
   - stale local snapshot warning
+  - active publish lease visibility
 - live index completeness view
 - live cluster list
 - live cluster detail
@@ -81,18 +83,22 @@ Why:
 
 ### Multi-user coordination
 
-Not implemented:
+Partially implemented:
 
-- publish lease / lock for the remote analysis cluster
+- remote publish lease / lock for the shared analysis cluster
+- stale-snapshot protection before publish
+
+Still not implemented:
+
 - cleanup/retention policy for old staged remote indices
 - remote diff-aware incremental edge/cluster publish
 - durable cross-process persistence for admin job state
 
 Why:
 
-- phase 1 focuses on safe snapshot pull/publish
-- alias promotion is enough to share stable results now
-- conflict management can follow once multi-user operational patterns are clearer
+- phase 1 focuses on safe snapshot pull/publish with a single active publisher
+- alias promotion plus a lease is enough to prevent accidental concurrent promotion
+- deeper conflict management can follow once multi-user operational patterns are clearer
 - admin jobs are currently reliable for normal local operation with a stable backend process, but not yet durable across arbitrary backend restarts
 
 ### Full reviewer workflow
@@ -125,8 +131,8 @@ Why:
 
 ### Cluster browsing scale
 
-- cluster list endpoints currently return a bounded page size
-- the UI currently focuses on the largest visible subset instead of full pagination/search over all clusters
+- cluster explorer paging is implemented
+- review queue and broader filtering still need richer cross-page browsing/search controls
 
 ### Lookup query cost
 
@@ -168,8 +174,8 @@ It does not yet mean:
 ## Recommended Next Steps
 
 1. Add reviewer notes and audit trail on cluster decisions.
-2. Add cluster pagination/filtering/search beyond the first result page.
+2. Continue expanding cluster pagination/filtering/search across all review surfaces.
 3. Add a live side-by-side evidence view for persisted clusters.
 4. Add approved-cluster draft generation for canonical article authoring.
-5. Add remote publish locking and staged-index retention for the shared analysis cluster.
+5. Add staged-index retention and publish history cleanup for the shared analysis cluster.
 6. Add explicit source-content write-back workflows once authoring rules are agreed.

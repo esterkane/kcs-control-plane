@@ -99,7 +99,12 @@ class ClusterSummaryItem(BaseModel):
 
 class ClusterListResponse(BaseModel):
     count: int
+    page: int
+    page_size: int = Field(alias="pageSize")
+    total_pages: int = Field(alias="totalPages")
     items: list[ClusterSummaryItem]
+
+    model_config = {"populate_by_name": True}
 
 
 class ClusterDetailResponse(DuplicateClusterDocument):
@@ -1069,11 +1074,19 @@ class DuplicateClusterService:
             reviewStateCounts=review_state_counts,
         )
 
-    def list_clusters(self, *, size: int = 20) -> ClusterListResponse:
+    def list_clusters(self, *, size: int = 20, page: int = 1) -> ClusterListResponse:
+        total_count = self.es_client.count_documents(
+            index=self.cluster_index,
+            query={"match_all": {}},
+        )
+        total_pages = max(1, (total_count + size - 1) // size)
+        bounded_page = min(max(page, 1), total_pages)
+        offset = (bounded_page - 1) * size
         hits = self.es_client.search(
             index=self.cluster_index,
             body={
                 "size": size,
+                "from": offset,
                 "sort": [{"member_count": "desc"}, {"cluster_id": "asc"}],
                 "query": {"match_all": {}},
             },
@@ -1084,10 +1097,10 @@ class DuplicateClusterService:
             if isinstance(hit.get("_source"), dict)
         ]
         return ClusterListResponse(
-            count=self.es_client.count_documents(
-                index=self.cluster_index,
-                query={"match_all": {}},
-            ),
+            count=total_count,
+            page=bounded_page,
+            pageSize=size,
+            totalPages=total_pages,
             items=items,
         )
 

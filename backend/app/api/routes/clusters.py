@@ -19,9 +19,10 @@ router = APIRouter(prefix="/kb", tags=["kb"])
 @router.get("/clusters", response_model=ClusterListResponse)
 def list_clusters(
     size: int = Query(default=20, ge=1, le=100),
+    page: int = Query(default=1, ge=1, le=10000),
 ) -> ClusterListResponse:
     service = build_duplicate_cluster_service()
-    return service.list_clusters(size=size)
+    return service.list_clusters(size=size, page=page)
 
 
 @router.get("/clusters/{cluster_id}", response_model=ClusterDetailResponse)

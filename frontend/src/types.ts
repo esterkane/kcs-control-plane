@@ -175,6 +175,12 @@ export type LocalRemoteSyncStatus = {
   embeddingProvider: string;
 };
 
+export type RemotePublishLockStatus = {
+  runId: string;
+  acquiredAt: string | null;
+  expiresAt: string | null;
+};
+
 export type RemoteAnalysisStatus = {
   enabled: boolean;
   urlConfigured: boolean;
@@ -193,6 +199,8 @@ export type RemoteAnalysisStatus = {
   latestPublishedRun: RemotePublishedRunStatus | null;
   localSync: LocalRemoteSyncStatus | null;
   localSnapshotStale: boolean;
+  publishLock: RemotePublishLockStatus | null;
+  publishBlockedReason: string | null;
 };
 
 export type LiveClusterSummary = {
@@ -206,6 +214,9 @@ export type LiveClusterSummary = {
 
 export type LiveClusterListResponse = {
   count: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   items: LiveClusterSummary[];
 };
 

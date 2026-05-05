@@ -11,6 +11,9 @@ def test_list_clusters_endpoint(monkeypatch) -> None:
     expected = ClusterListResponse.model_validate(
         {
             "count": 1,
+            "page": 2,
+            "pageSize": 50,
+            "totalPages": 1,
             "items": [
                 {
                     "clusterId": "family-1",
@@ -25,15 +28,18 @@ def test_list_clusters_endpoint(monkeypatch) -> None:
     )
 
     class FakeService:
-        def list_clusters(self, *, size: int = 20):
+        def list_clusters(self, *, size: int = 20, page: int = 1):
+            assert size == 50
+            assert page == 2
             return expected
 
     monkeypatch.setattr("app.api.routes.clusters.build_duplicate_cluster_service", lambda: FakeService())
 
-    response = client.get("/kb/clusters")
+    response = client.get("/kb/clusters?size=50&page=2")
 
     assert response.status_code == 200
     assert response.json()["items"][0]["clusterId"] == "family-1"
+    assert response.json()["page"] == 2
 
 
 def test_get_cluster_endpoint(monkeypatch) -> None:
@@ -111,6 +117,9 @@ def test_get_cluster_for_article_endpoint(monkeypatch) -> None:
     expected = ClusterListResponse.model_validate(
         {
             "count": 1,
+            "page": 1,
+            "pageSize": 20,
+            "totalPages": 1,
             "items": [
                 {
                     "clusterId": "family-1",

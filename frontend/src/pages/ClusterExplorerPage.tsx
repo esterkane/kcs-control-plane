@@ -16,8 +16,12 @@ type ClusterExplorerPageProps = {
   onOpenComparison: (comparisonId: string) => void;
   liveClusters: LiveClusterSummary[] | null;
   liveClusterCount: number;
+  liveClusterPage: number;
+  liveClusterPageSize: number;
+  liveClusterTotalPages: number;
   liveClustersError: string | null;
   onOpenCluster: (clusterId: string) => void;
+  onChangeLiveClusterPage: (page: number) => void;
 };
 
 function articleHref(articleId: string): string {
@@ -31,8 +35,12 @@ export function ClusterExplorerPage({
   onOpenComparison,
   liveClusters,
   liveClusterCount,
+  liveClusterPage,
+  liveClusterPageSize,
+  liveClusterTotalPages,
   liveClustersError,
   onOpenCluster,
+  onChangeLiveClusterPage,
 }: ClusterExplorerPageProps) {
   const [showVisualization, setShowVisualization] = useState(false);
   const [productFilter, setProductFilter] = useState("all");
@@ -70,15 +78,31 @@ export function ClusterExplorerPage({
                 <p className="section-kicker">Live clusters</p>
                 <h3>Real cluster materialization output</h3>
                 <p className="supporting-copy">
-                  Showing the largest {visibleClusters.length} persisted clusters from the backend.
-                  {liveClusterCount > visibleClusters.length
-                    ? ` Total persisted clusters: ${liveClusterCount}.`
-                    : ""}
+                  Showing page {liveClusterPage} of {liveClusterTotalPages}, with up to {liveClusterPageSize}
+                  {" "}persisted clusters per page. Total persisted clusters: {liveClusterCount}.
                 </p>
               </div>
               <Badge tone="success">{liveClusterCount} total</Badge>
             </div>
             {liveClustersError ? <p className="error-copy">{liveClustersError}</p> : null}
+            <div className="panel-actions panel-actions-wrap">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onChangeLiveClusterPage(liveClusterPage - 1)}
+                disabled={liveClusterPage <= 1}
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onChangeLiveClusterPage(liveClusterPage + 1)}
+                disabled={liveClusterPage >= liveClusterTotalPages}
+              >
+                Next page
+              </button>
+            </div>
           </section>
 
           <section className="result-stack" aria-label="Live cluster list">

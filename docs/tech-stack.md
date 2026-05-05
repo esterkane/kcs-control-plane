@@ -293,13 +293,17 @@ This keeps:
 - local work safe
 - shared published state stable
 
+The current shared publish path also includes two coordination guards:
+
+- a remote publish lease stored in the remote analysis metadata index
+- a stale-snapshot check that blocks publish when the local workspace is behind the latest published remote run
+
 ## What Is Still Intentionally Missing
 
 Not yet part of the design:
 
 - source-content write-back
 - reviewer assignment/identity model
-- remote publish locking
 - staged-index retention policy
 - full incremental remote edge/cluster diff publication
 

@@ -34,6 +34,8 @@ Implemented today:
 - remote analysis sync workflows:
   - pull published analysis indices into local working indices
   - publish local analysis indices to a remote staged snapshot plus alias promotion
+  - block remote publish when the local workspace is stale
+  - take a remote publish lease so only one shared publish proceeds at a time
 - live UI for:
   - admin pipeline control
   - lookup search
@@ -52,7 +54,7 @@ Not implemented yet:
 - merging source KB articles into a new draft article
 - pushing accepted editorial outcomes back to the remote/source KB content index
 - reviewer notes, audit trail, and assignment workflow
-- pagination/bulk review for the full cluster corpus in the UI
+- bulk review actions and richer cross-page filtering for the full cluster corpus in the UI
 - a full live side-by-side merge workspace for persisted clusters
 
 Why those parts are not implemented yet:
@@ -197,6 +199,9 @@ This copies the remote published analysis aliases into the local working indices
 
 Use this when a new user wants to start from the latest published embeddings, edges, and clusters instead of computing everything from zero.
 
+If a published remote snapshot already exists, pull it first before you run a full local rebuild.
+The Admin page now shows a first-install warning for that case.
+
 ### 2. Search for related articles
 
 Open the `Lookup` page.
@@ -247,7 +252,8 @@ Instead it:
 
 1. copies the local working indices into versioned remote staging indices
 2. validates document counts
-3. atomically switches the remote analysis aliases
+3. acquires a remote publish lease and blocks stale local snapshots
+4. atomically switches the remote analysis aliases
 
 This lets multiple users consume a shared published duplicate-analysis result without exposing half-finished local work.
 

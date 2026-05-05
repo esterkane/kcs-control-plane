@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 from uuid import uuid4
 
@@ -11,6 +11,7 @@ from app.config import (
     AnalysisSyncSummary,
     get_duplicate_embedding_provider,
     get_local_analysis_metadata_index,
+    get_remote_analysis_publish_lock_seconds,
     get_remote_analysis_chunk_alias,
     get_remote_analysis_duplicate_cluster_alias,
     get_remote_analysis_duplicate_edge_alias,
@@ -30,6 +31,7 @@ from app.elasticsearch.client import ElasticsearchClient, ElasticsearchClientErr
 from app.ingestion.kb import TARGET_INDEX_MAPPING
 
 ProgressCallback = Callable[[str], None]
+PUBLISH_LOCK_DOCUMENT_ID = "publish-lock"
 
 SYNC_METADATA_MAPPING: dict[str, Any] = {
     "settings": {
@@ -68,6 +70,9 @@ SYNC_METADATA_MAPPING: dict[str, Any] = {
                     "clusters": {"type": "integer"},
                 }
             },
+            "lock_holder": {"type": "keyword"},
+            "acquired_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
+            "expires_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
         },
     },
 }
@@ -84,6 +89,13 @@ class SyncIndexSpec:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_iso(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _mapping_fields(mapping: dict[str, Any]) -> list[str]:
@@ -216,22 +228,13 @@ class RemoteAnalysisSyncService:
                     "Pull complete for index: "
                     f"{spec.key} copied_documents={copied}."
                 )
-        if self.remote_client.index_exists(index=self.metadata_index):
-            hits = self.remote_client.search(
-                index=self.metadata_index,
-                body={
-                    "size": 1,
-                    "sort": [{"published_at": "desc"}],
-                    "query": {"match_all": {}},
-                },
-            )
-            if hits and isinstance(hits[0].get("_source"), dict):
-                metadata_document = dict(hits[0]["_source"])
-                remote_run_id = metadata_document.get("run_id") if isinstance(metadata_document.get("run_id"), str) else None
-                metadata_document["mode"] = "pull_remote_analysis"
-                metadata_document["local_indices"] = {spec.key: spec.local_index for spec in self.specs}
-                metadata_document["synced_at"] = _now_iso()
-                self._write_local_sync_state(metadata_document)
+        metadata_document = self._read_latest_remote_metadata()
+        if metadata_document is not None:
+            remote_run_id = metadata_document.get("run_id") if isinstance(metadata_document.get("run_id"), str) else None
+            metadata_document["mode"] = "pull_remote_analysis"
+            metadata_document["local_indices"] = {spec.key: spec.local_index for spec in self.specs}
+            metadata_document["synced_at"] = _now_iso()
+            self._write_local_sync_state(metadata_document)
         return AnalysisSyncSummary(
             mode="pull_remote_analysis",
             remoteRunId=remote_run_id,
@@ -267,6 +270,116 @@ class RemoteAnalysisSyncService:
             documents=[("latest", document)],
         )
 
+    def _read_latest_remote_metadata(self) -> dict[str, Any] | None:
+        if not self.remote_client.index_exists(index=self.metadata_index):
+            return None
+        hits = self.remote_client.search(
+            index=self.metadata_index,
+            body={
+                "size": 1,
+                "sort": [{"published_at": "desc"}],
+                "query": {
+                    "bool": {
+                        "must": [{"term": {"mode": "publish_remote_analysis"}}],
+                        "must_not": [{"ids": {"values": [PUBLISH_LOCK_DOCUMENT_ID]}}],
+                    }
+                },
+            },
+        )
+        if not hits:
+            return None
+        source = hits[0].get("_source")
+        return dict(source) if isinstance(source, dict) else None
+
+    def _read_local_sync_state(self) -> dict[str, Any] | None:
+        if not self.local_client.index_exists(index=self.local_metadata_index):
+            return None
+        hits = self.local_client.search(
+            index=self.local_metadata_index,
+            body={
+                "size": 1,
+                "query": {"match_all": {}},
+            },
+        )
+        if not hits:
+            return None
+        source = hits[0].get("_source")
+        return dict(source) if isinstance(source, dict) else None
+
+    def _ensure_publish_freshness(self) -> None:
+        latest_remote = self._read_latest_remote_metadata()
+        if latest_remote is None:
+            return
+        latest_run_id = latest_remote.get("run_id")
+        if not isinstance(latest_run_id, str) or not latest_run_id:
+            return
+        local_sync = self._read_local_sync_state()
+        if local_sync is None:
+            raise ElasticsearchClientError(
+                "Local working indices are older than the latest published remote analysis snapshot. "
+                "Pull published remote analysis before publishing local calculations."
+            )
+        local_run_id = local_sync.get("run_id")
+        if local_run_id != latest_run_id:
+            raise ElasticsearchClientError(
+                "Local working indices are stale compared with the latest published remote analysis snapshot. "
+                f"Local run={local_run_id!r}, latest remote run={latest_run_id!r}. "
+                "Pull published remote analysis before publishing local calculations."
+            )
+
+    def _acquire_publish_lock(self, *, run_id: str) -> None:
+        self._ensure_metadata_index()
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        expires_at = now + timedelta(seconds=get_remote_analysis_publish_lock_seconds())
+        lock_document = {
+            "run_id": run_id,
+            "mode": "publish_remote_analysis_lock",
+            "lock_holder": run_id,
+            "acquired_at": now.isoformat().replace("+00:00", "Z"),
+            "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+        }
+        try:
+            self.remote_client.create_document(
+                index=self.metadata_index,
+                document_id=PUBLISH_LOCK_DOCUMENT_ID,
+                document=lock_document,
+            )
+            return
+        except ElasticsearchClientError as exc:
+            if " 409 " not in f" {exc} " and "response 409" not in str(exc):
+                raise
+        existing_lock = self.remote_client.get_document(index=self.metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+        if existing_lock is None:
+            self.remote_client.create_document(
+                index=self.metadata_index,
+                document_id=PUBLISH_LOCK_DOCUMENT_ID,
+                document=lock_document,
+            )
+            return
+        expires_at_raw = existing_lock.get("expires_at")
+        lock_holder = existing_lock.get("lock_holder") or existing_lock.get("run_id") or "unknown"
+        expires_at_value = _parse_iso(expires_at_raw) if isinstance(expires_at_raw, str) else None
+        if expires_at_value is not None and expires_at_value <= now:
+            self.remote_client.delete_document(index=self.metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+            self.remote_client.create_document(
+                index=self.metadata_index,
+                document_id=PUBLISH_LOCK_DOCUMENT_ID,
+                document=lock_document,
+            )
+            return
+        raise ElasticsearchClientError(
+            "A remote analysis publish lock is already held. "
+            f"Current holder={lock_holder!r}, expires_at={expires_at_raw!r}."
+        )
+
+    def _release_publish_lock(self, *, run_id: str) -> None:
+        existing_lock = self.remote_client.get_document(index=self.metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+        if existing_lock is None:
+            return
+        lock_holder = existing_lock.get("lock_holder") or existing_lock.get("run_id")
+        if lock_holder == run_id:
+            self.remote_client.delete_document(index=self.metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+
     def _cleanup_staged_indices(
         self,
         *,
@@ -288,7 +401,11 @@ class RemoteAnalysisSyncService:
         run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
         counts: dict[str, int] = {}
         staged_indices: dict[str, str] = {}
+        lock_acquired = False
         try:
+            self._ensure_publish_freshness()
+            self._acquire_publish_lock(run_id=run_id)
+            lock_acquired = True
             for spec in self.specs:
                 local_count = self.local_client.count_documents(index=spec.local_index, query={"match_all": {}})
                 counts[spec.key] = local_count
@@ -361,6 +478,9 @@ class RemoteAnalysisSyncService:
         except Exception:
             self._cleanup_staged_indices(staged_indices=staged_indices, progress_callback=progress_callback)
             raise
+        finally:
+            if lock_acquired:
+                self._release_publish_lock(run_id=run_id)
 
 
 def build_remote_analysis_sync_service() -> RemoteAnalysisSyncService:

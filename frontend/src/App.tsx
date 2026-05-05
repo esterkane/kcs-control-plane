@@ -70,7 +70,11 @@ function isLiveClusterListResponse(payload: unknown): payload is LiveClusterList
     return false;
   }
   const candidate = payload as Record<string, unknown>;
-  return typeof candidate.count === "number" && Array.isArray(candidate.items);
+  return typeof candidate.count === "number"
+    && typeof candidate.page === "number"
+    && typeof candidate.pageSize === "number"
+    && typeof candidate.totalPages === "number"
+    && Array.isArray(candidate.items);
 }
 
 function isAdminIndexStatus(payload: unknown): payload is AdminIndexStatus {
@@ -107,6 +111,7 @@ function mergePipelineLogs(
 }
 
 export default function App() {
+  const liveClusterPageSize = 50;
   const [state, dispatch] = useReducer(reduceWorkflowState, initialState);
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   const [activeRun, setActiveRun] = useState<AdminPipelineRun | null>(null);
@@ -118,6 +123,8 @@ export default function App() {
   const [remoteAnalysisStatusError, setRemoteAnalysisStatusError] = useState<string | null>(null);
   const [liveClusters, setLiveClusters] = useState<LiveClusterListResponse["items"] | null>(null);
   const [liveClusterCount, setLiveClusterCount] = useState(0);
+  const [liveClusterPage, setLiveClusterPage] = useState(1);
+  const [liveClusterTotalPages, setLiveClusterTotalPages] = useState(1);
   const [liveClustersError, setLiveClustersError] = useState<string | null>(null);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [liveClusterDetail, setLiveClusterDetail] = useState<LiveClusterDetail | null>(null);
@@ -251,7 +258,9 @@ export default function App() {
 
     async function loadClusters(): Promise<void> {
       try {
-        const response = await fetch(`${apiBaseUrl}/kb/clusters?size=100`);
+        const response = await fetch(
+          `${apiBaseUrl}/kb/clusters?size=${liveClusterPageSize}&page=${liveClusterPage}`,
+        );
         if (!response.ok) {
           throw new Error(`Failed to load clusters: ${response.status}`);
         }
@@ -264,6 +273,8 @@ export default function App() {
         }
         setLiveClusters(payload.items);
         setLiveClusterCount(payload.count);
+        setLiveClusterPage(payload.page);
+        setLiveClusterTotalPages(payload.totalPages);
         setLiveClustersError(null);
       } catch (error) {
         if (cancelled) {
@@ -284,7 +295,7 @@ export default function App() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [apiBaseUrl, state.activePageId]);
+  }, [apiBaseUrl, liveClusterPage, liveClusterPageSize, state.activePageId]);
 
   useEffect(() => {
     if (state.activePageId !== "clusterDetail" || selectedClusterId === null) {
@@ -518,8 +529,14 @@ export default function App() {
             onOpenComparison={handleOpenComparison}
             liveClusters={liveClusters}
             liveClusterCount={liveClusterCount}
+            liveClusterPage={liveClusterPage}
+            liveClusterPageSize={liveClusterPageSize}
+            liveClusterTotalPages={liveClusterTotalPages}
             liveClustersError={liveClustersError}
             onOpenCluster={handleOpenCluster}
+            onChangeLiveClusterPage={(page) => {
+              setLiveClusterPage(Math.max(1, Math.min(page, liveClusterTotalPages)));
+            }}
           />
         );
       case "clusterDetail":
