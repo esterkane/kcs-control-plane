@@ -42,6 +42,7 @@ SYNC_METADATA_MAPPING: dict[str, Any] = {
         "dynamic": "strict",
         "properties": {
             "run_id": {"type": "keyword"},
+            "job_id": {"type": "keyword"},
             "mode": {"type": "keyword"},
             "published_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
             "synced_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
@@ -270,6 +271,12 @@ class RemoteAnalysisSyncService:
             documents=[("latest", document)],
         )
 
+    def get_active_publish_lock(self) -> dict[str, Any] | None:
+        if not self.remote_client.index_exists(index=self.metadata_index):
+            return None
+        lock_document = self.remote_client.get_document(index=self.metadata_index, document_id=PUBLISH_LOCK_DOCUMENT_ID)
+        return dict(lock_document) if isinstance(lock_document, dict) else None
+
     def _read_latest_remote_metadata(self) -> dict[str, Any] | None:
         if not self.remote_client.index_exists(index=self.metadata_index):
             return None
@@ -327,12 +334,13 @@ class RemoteAnalysisSyncService:
                 "Pull published remote analysis before publishing local calculations."
             )
 
-    def _acquire_publish_lock(self, *, run_id: str) -> None:
+    def _acquire_publish_lock(self, *, run_id: str, job_id: str | None = None) -> None:
         self._ensure_metadata_index()
         now = datetime.now(timezone.utc).replace(microsecond=0)
         expires_at = now + timedelta(seconds=get_remote_analysis_publish_lock_seconds())
         lock_document = {
             "run_id": run_id,
+            "job_id": job_id or run_id,
             "mode": "publish_remote_analysis_lock",
             "lock_holder": run_id,
             "acquired_at": now.isoformat().replace("+00:00", "Z"),
@@ -396,20 +404,40 @@ class RemoteAnalysisSyncService:
                     f"{key} -> {staged_index}."
                 )
 
-    def publish_local_to_remote(self, *, progress_callback: ProgressCallback | None = None) -> AnalysisSyncSummary:
+    def publish_local_to_remote(
+        self,
+        *,
+        progress_callback: ProgressCallback | None = None,
+        run_id: str | None = None,
+        job_id: str | None = None,
+        resume_existing_run: bool = False,
+    ) -> AnalysisSyncSummary:
         self._ensure_remote_enabled()
-        run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+        effective_run_id = run_id or f"run-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
         counts: dict[str, int] = {}
         staged_indices: dict[str, str] = {}
         lock_acquired = False
         try:
-            self._ensure_publish_freshness()
-            self._acquire_publish_lock(run_id=run_id)
-            lock_acquired = True
+            if resume_existing_run:
+                existing_lock = self.get_active_publish_lock()
+                if existing_lock is None:
+                    raise ElasticsearchClientError(
+                        "Cannot resume remote analysis publish because no active publish lock exists."
+                    )
+                lock_run_id = existing_lock.get("run_id")
+                if lock_run_id != effective_run_id:
+                    raise ElasticsearchClientError(
+                        "Cannot resume remote analysis publish because the active lock does not match the requested run. "
+                        f"requested_run={effective_run_id!r}, active_run={lock_run_id!r}."
+                    )
+            else:
+                self._ensure_publish_freshness()
+                self._acquire_publish_lock(run_id=effective_run_id, job_id=job_id)
+                lock_acquired = True
             for spec in self.specs:
                 local_count = self.local_client.count_documents(index=spec.local_index, query={"match_all": {}})
                 counts[spec.key] = local_count
-                staged_index = f"{spec.remote_alias}-run-{run_id}"
+                staged_index = f"{spec.remote_alias}-run-{effective_run_id}"
                 staged_indices[spec.key] = staged_index
                 if progress_callback is not None:
                     progress_callback(
@@ -442,7 +470,8 @@ class RemoteAnalysisSyncService:
 
             self._ensure_metadata_index()
             metadata_document = {
-                "run_id": run_id,
+                "run_id": effective_run_id,
+                "job_id": job_id or effective_run_id,
                 "mode": "publish_remote_analysis",
                 "published_at": _now_iso(),
                 "embedding_provider": get_duplicate_embedding_provider(),
@@ -452,7 +481,7 @@ class RemoteAnalysisSyncService:
             }
             self.remote_client.bulk_index(
                 index=self.metadata_index,
-                documents=[("published", metadata_document), (run_id, metadata_document)],
+                documents=[("published", metadata_document), (effective_run_id, metadata_document)],
             )
             local_metadata_document = dict(metadata_document)
             local_metadata_document["synced_at"] = _now_iso()
@@ -461,14 +490,14 @@ class RemoteAnalysisSyncService:
             if progress_callback is not None:
                 progress_callback(
                     "Remote analysis publish complete: "
-                    f"run_id={run_id}, article_documents={counts.get('articles', 0)}, "
+                    f"run_id={effective_run_id}, article_documents={counts.get('articles', 0)}, "
                     f"chunk_documents={counts.get('chunks', 0)}, "
                     f"edge_documents={counts.get('edges', 0)}, "
                     f"cluster_documents={counts.get('clusters', 0)}."
                 )
             return AnalysisSyncSummary(
                 mode="publish_remote_analysis",
-                remoteRunId=run_id,
+                remoteRunId=effective_run_id,
                 articleDocuments=counts.get("articles", 0),
                 chunkDocuments=counts.get("chunks", 0),
                 edgeDocuments=counts.get("edges", 0),
@@ -479,8 +508,8 @@ class RemoteAnalysisSyncService:
             self._cleanup_staged_indices(staged_indices=staged_indices, progress_callback=progress_callback)
             raise
         finally:
-            if lock_acquired:
-                self._release_publish_lock(run_id=run_id)
+            if lock_acquired or resume_existing_run:
+                self._release_publish_lock(run_id=effective_run_id)
 
 
 def build_remote_analysis_sync_service() -> RemoteAnalysisSyncService:

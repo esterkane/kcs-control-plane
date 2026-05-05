@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin_jobs import get_admin_job_manager
 from app.api.routes.admin import router as admin_router
 from app.api.routes.clusters import router as clusters_router
 from app.api.routes.kb import router as kb_router
 from app.api.routes.system import router as system_router
+
+
+@asynccontextmanager
+async def app_lifespan(_app: FastAPI):
+    get_admin_job_manager().recover_interrupted_jobs()
+    yield
 
 
 def create_app() -> FastAPI:
@@ -14,6 +23,7 @@ def create_app() -> FastAPI:
         title="kcs-control-plane-backend",
         version="0.1.0",
         summary="FastAPI bootstrap for the KB control plane.",
+        lifespan=app_lifespan,
     )
 
     app.add_middleware(

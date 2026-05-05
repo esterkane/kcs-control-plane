@@ -36,6 +36,7 @@ Implemented today:
   - publish local analysis indices to a remote staged snapshot plus alias promotion
   - block remote publish when the local workspace is stale
   - take a remote publish lease so only one shared publish proceeds at a time
+  - recover an interrupted remote publish automatically after backend restart
 - live UI for:
   - admin pipeline control
   - lookup search

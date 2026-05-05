@@ -261,6 +261,7 @@ class AdminJobManager:
         kind: str,
         runner_factory: Callable[[str], Callable[[str], None]],
         reuse_running_job: bool = True,
+        job_id: str | None = None,
     ) -> JobStartResponse:
         with self._lock:
             if reuse_running_job:
@@ -273,25 +274,25 @@ class AdminJobManager:
                             reusedExistingJob=True,
                         )
 
-            job_id = f"job-{uuid4().hex[:12]}"
+            effective_job_id = job_id or f"job-{uuid4().hex[:12]}"
             job = JobState(
-                job_id=job_id,
+                job_id=effective_job_id,
                 kind=kind,
                 status="queued",
                 started_at=_now_iso(),
             )
-            self._jobs[job_id] = job
+            self._jobs[effective_job_id] = job
 
         worker = threading.Thread(
             target=self._run_job_thread,
-            args=(job_id, runner_factory(job_id)),
+            args=(job.job_id, runner_factory(job.job_id)),
             daemon=True,
         )
         with self._lock:
-            self._workers[job_id] = worker
+            self._workers[job.job_id] = worker
         worker.start()
         return JobStartResponse(
-            jobId=job_id,
+            jobId=job.job_id,
             kind=job.kind,
             status=job.status,
             reusedExistingJob=False,
@@ -334,6 +335,7 @@ class AdminJobManager:
             self._append_log(job_id, level="info", message="Starting remote analysis publish from local indices.")
             summary = build_remote_analysis_sync_service().publish_local_to_remote(
                 progress_callback=lambda message: self._append_log(job_id, level="info", message=message),
+                job_id=job_id,
             )
             self._append_log(
                 job_id,
@@ -362,6 +364,70 @@ class AdminJobManager:
         return self._start_job(
             kind="publish_remote_analysis",
             runner_factory=lambda _job_id: self._run_publish_remote_analysis,
+        )
+
+    def _run_publish_remote_analysis_resume(self, job_id: str, *, run_id: str) -> None:
+        try:
+            self._append_log(job_id, level="info", message="Resuming remote analysis publish from persisted lock.")
+            summary = build_remote_analysis_sync_service().publish_local_to_remote(
+                progress_callback=lambda message: self._append_log(job_id, level="info", message=message),
+                run_id=run_id,
+                job_id=job_id,
+                resume_existing_run=True,
+            )
+            self._append_log(
+                job_id,
+                level="info",
+                message=(
+                    "Remote analysis publish complete: "
+                    f"run_id={summary.remote_run_id}, "
+                    f"article_documents={summary.article_documents}, "
+                    f"chunk_documents={summary.chunk_documents}, "
+                    f"edge_documents={summary.edge_documents}, "
+                    f"cluster_documents={summary.cluster_documents}."
+                ),
+            )
+            self._set_status(job_id, status="succeeded")
+        except Exception as exc:
+            self._append_log(job_id, level="error", message=f"Pipeline failed: {exc}")
+            self._set_status(job_id, status="failed")
+
+    def recover_interrupted_jobs(self) -> JobStartResponse | None:
+        with self._lock:
+            if any(job.kind == "publish_remote_analysis" and job.status in {"queued", "running"} for job in self._jobs.values()):
+                return None
+
+        sync_service = build_remote_analysis_sync_service()
+        active_lock = sync_service.get_active_publish_lock()
+        if active_lock is None:
+            return None
+
+        run_id = active_lock.get("run_id")
+        recovered_job_id = active_lock.get("job_id")
+        if not isinstance(run_id, str) or not run_id:
+            return None
+        if not isinstance(recovered_job_id, str) or not recovered_job_id:
+            recovered_job_id = f"job-recovered-{uuid4().hex[:8]}"
+
+        def runner_factory(current_job_id: str) -> Callable[[str], None]:
+            self._append_log(
+                current_job_id,
+                level="info",
+                message=(
+                    "Recovered interrupted remote analysis publish after backend startup. "
+                    f"Resuming run_id={run_id}."
+                ),
+            )
+            return lambda restored_job_id: self._run_publish_remote_analysis_resume(
+                restored_job_id,
+                run_id=run_id,
+            )
+
+        return self._start_job(
+            kind="publish_remote_analysis",
+            runner_factory=runner_factory,
+            reuse_running_job=False,
+            job_id=recovered_job_id,
         )
 
     def _run_job_thread(self, job_id: str, runner: Callable[[str], None]) -> None:

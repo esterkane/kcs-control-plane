@@ -297,6 +297,7 @@ The current shared publish path also includes two coordination guards:
 
 - a remote publish lease stored in the remote analysis metadata index
 - a stale-snapshot check that blocks publish when the local workspace is behind the latest published remote run
+- startup recovery that reconstructs an interrupted remote publish from the active lease after a backend restart
 
 ## What Is Still Intentionally Missing
 

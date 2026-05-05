@@ -14,6 +14,7 @@ The project is currently in a strong local-review state:
 - remote analysis pull/publish workflows exist for sharing published analysis snapshots
 - failed remote publish runs now clean up the staged indices they created
 - remote publish now takes a lease and blocks stale local snapshots before promotion
+- interrupted remote publish runs are recovered automatically when the backend starts again
 
 The system is not yet an authoring or publishing tool.
 
@@ -92,14 +93,15 @@ Still not implemented:
 
 - cleanup/retention policy for old staged remote indices
 - remote diff-aware incremental edge/cluster publish
-- durable cross-process persistence for admin job state
+- full durable persistence for every admin job kind
 
 Why:
 
 - phase 1 focuses on safe snapshot pull/publish with a single active publisher
 - alias promotion plus a lease is enough to prevent accidental concurrent promotion
+- remote publish now recovers from backend restart, but other admin jobs are still in-memory
 - deeper conflict management can follow once multi-user operational patterns are clearer
-- admin jobs are currently reliable for normal local operation with a stable backend process, but not yet durable across arbitrary backend restarts
+- admin jobs are currently reliable for normal local operation, but only remote publish has restart recovery today
 
 ### Full reviewer workflow
 

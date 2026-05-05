@@ -4,7 +4,7 @@ import json
 
 from fastapi.testclient import TestClient
 
-from app.admin_jobs import AdminJobManager, JobLogEntry, JobState
+from app.admin_jobs import AdminJobManager, JobLogEntry, JobStartResponse, JobState
 from app.main import app
 
 
@@ -472,3 +472,39 @@ def test_admin_job_manager_resumes_from_step_three_when_chunk_index_is_partial(m
     assert start_step == 3
     assert message is not None
     assert "Step 3/4" in message
+
+
+def test_admin_job_manager_recovers_interrupted_publish_job(monkeypatch) -> None:
+    class FakeSyncService:
+        def get_active_publish_lock(self):
+            return {
+                "run_id": "run-123",
+                "job_id": "job-123",
+            }
+
+    manager = AdminJobManager()
+    captured: dict[str, object] = {}
+
+    def fake_start_job(*, kind, runner_factory, reuse_running_job=True, job_id=None):
+        captured["kind"] = kind
+        captured["reuse_running_job"] = reuse_running_job
+        captured["job_id"] = job_id
+        return JobStartResponse(
+            jobId=job_id or "job-generated",
+            kind=kind,
+            status="queued",
+            reusedExistingJob=False,
+        )
+
+    monkeypatch.setattr("app.admin_jobs.build_remote_analysis_sync_service", lambda: FakeSyncService())
+    monkeypatch.setattr(manager, "_start_job", fake_start_job)
+
+    response = manager.recover_interrupted_jobs()
+
+    assert response is not None
+    assert response.job_id == "job-123"
+    assert captured == {
+        "kind": "publish_remote_analysis",
+        "reuse_running_job": False,
+        "job_id": "job-123",
+    }
