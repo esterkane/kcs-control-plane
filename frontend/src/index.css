@@ -1,0 +1,25 @@
+:root {
+  font-family: "Fraunces", "Avenir Next", "Segoe UI", serif;
+  color: #132033;
+  background-color: #ece7dc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}

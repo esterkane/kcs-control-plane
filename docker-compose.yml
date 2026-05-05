@@ -1,0 +1,106 @@
+name: kcs-control-plane
+
+services:
+  backend:
+    build:
+      context: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      ELASTICSEARCH_LOCAL_URL: ${ELASTICSEARCH_LOCAL_URL:-http://elasticsearch:9200}
+      SOURCE_ES_URL: ${SOURCE_ES_URL:-}
+      SOURCE_ES_API_KEY: ${SOURCE_ES_API_KEY:-}
+      SOURCE_ES_INDEX: ${SOURCE_ES_INDEX:-search-knowledge-articles-prod-v1}
+      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-stub}
+      LOCAL_EMBEDDING_URL: ${LOCAL_EMBEDDING_URL:-http://local-embeddings:7997/v1/embeddings}
+      LOCAL_EMBEDDING_FALLBACK_URLS: ${LOCAL_EMBEDDING_FALLBACK_URLS:-http://host.docker.internal:7997/v1/embeddings}
+      LOCAL_EMBEDDING_MODEL: ${LOCAL_EMBEDDING_MODEL:-jinaai/jina-embeddings-v3-hf}
+      JINA_EMBEDDING_URL: ${JINA_EMBEDDING_URL:-https://api.jina.ai/v1/embeddings}
+      JINA_API_KEY: ${JINA_API_KEY:-}
+      JINA_EMBEDDING_MODEL: ${JINA_EMBEDDING_MODEL:-jina-embeddings-v3}
+      JINA_RERANKER_URL: ${JINA_RERANKER_URL:-https://api.jina.ai/v1/rerank}
+      JINA_RERANKER_MODEL: ${JINA_RERANKER_MODEL:-jina-reranker-v2-base-multilingual}
+      DUPLICATE_EMBEDDING_PROVIDER: ${DUPLICATE_EMBEDDING_PROVIDER:-local}
+      DUPLICATE_EMBEDDING_TASK: ${DUPLICATE_EMBEDDING_TASK:-retrieval.passage}
+      DUPLICATE_EMBEDDING_DIMS: ${DUPLICATE_EMBEDDING_DIMS:-1024}
+      RERANKER_PROVIDER: ${RERANKER_PROVIDER:-stub}
+      LLM_EXPLANATION_PROVIDER: ${LLM_EXPLANATION_PROVIDER:-stub}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - elasticsearch
+      - local-embeddings
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    environment:
+      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-9.3.3}
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-9.3.3}
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      XPACK_SECURITY_ENABLED: "false"
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      - elasticsearch
+
+  local-embeddings:
+    build:
+      context: ./infra/local-embeddings
+    restart: unless-stopped
+    environment:
+      LOCAL_EMBEDDING_MODEL: ${LOCAL_EMBEDDING_MODEL:-jinaai/jina-embeddings-v3-hf}
+      LOCAL_EMBEDDING_MAX_LENGTH: ${LOCAL_EMBEDDING_MAX_LENGTH:-8192}
+      LOCAL_EMBEDDING_DEFAULT_TASK: ${DUPLICATE_EMBEDDING_TASK:-retrieval.passage}
+    ports:
+      - "${LOCAL_EMBEDDING_PORT:-7997}:7997"
+    volumes:
+      - huggingface_cache:/data/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7997/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  elasticsearch_data:
+  frontend_node_modules:
+  huggingface_cache:
