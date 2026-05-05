@@ -12,6 +12,7 @@ The project is currently in a strong local-review state:
 - cluster review-state persistence works
 - the main review UI is live against backend APIs
 - remote analysis pull/publish workflows exist for sharing published analysis snapshots
+- failed remote publish runs now clean up the staged indices they created
 
 The system is not yet an authoring or publishing tool.
 
@@ -85,12 +86,14 @@ Not implemented:
 - publish lease / lock for the remote analysis cluster
 - cleanup/retention policy for old staged remote indices
 - remote diff-aware incremental edge/cluster publish
+- durable cross-process persistence for admin job state
 
 Why:
 
 - phase 1 focuses on safe snapshot pull/publish
 - alias promotion is enough to share stable results now
 - conflict management can follow once multi-user operational patterns are clearer
+- admin jobs are currently reliable for normal local operation with a stable backend process, but not yet durable across arbitrary backend restarts
 
 ### Full reviewer workflow
 

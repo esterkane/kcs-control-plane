@@ -104,6 +104,7 @@ Tradeoff:
 Important variables:
 
 - `APP_ENV`
+- `BACKEND_RELOAD`
 - `BACKEND_PORT`
 - `FRONTEND_PORT`
 - `ELASTICSEARCH_LOCAL_URL`
@@ -111,6 +112,21 @@ Important variables:
 Why:
 
 - these keep the local control plane self-contained and easy to run in Docker Compose
+
+Default:
+
+- `BACKEND_RELOAD=false`
+
+Why that default matters:
+
+- long-running background jobs such as full refresh and remote publish currently run in-process inside the backend container
+- `uvicorn --reload` restarts the process when watched files change
+- that restart interrupts in-flight jobs before they can finish remote alias promotion or record a terminal status
+
+Tradeoff:
+
+- `BACKEND_RELOAD=true` is still available for active backend development
+- but it should be avoided while running admin workflows that copy or publish large datasets
 
 ### Remote Source KB
 
@@ -172,6 +188,17 @@ Why aliases instead of fixed indices:
 - alias promotion is safer than writing directly into the live shared target
 - it avoids exposing partially built results
 - it supports versioned remote staging indices per publish run
+
+Failure behavior:
+
+- publish writes into versioned staged remote indices first
+- only after copy and validation succeed are the stable aliases promoted
+- if publish fails during staging, the service now deletes the staged indices it created during that failed run
+
+Current limitation:
+
+- if the backend process is terminated externally, in-memory job state is still lost
+- the default non-reload backend mode reduces that risk for normal local use
 
 ### Local Sync Metadata
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 from app.text_sanitize import sanitize_jsonish
 
@@ -357,14 +357,13 @@ class ElasticsearchClient:
             expected_statuses={200},
         )
 
-    def iterate_documents(
+    def iterate_document_batches(
         self,
         *,
         index: str,
         page_size: int = 250,
         source_includes: list[str] | None = None,
-    ) -> list[tuple[str, dict[str, Any]]]:
-        documents: list[tuple[str, dict[str, Any]]] = []
+    ) -> Iterator[list[tuple[str, dict[str, Any]]]]:
         pit_id = self.open_point_in_time(index=index, keep_alive="1m")
         search_after: list[Any] | None = None
         try:
@@ -379,15 +378,33 @@ class ElasticsearchClient:
                 pit_id = page.pit_id
                 if not page.hits:
                     break
+                documents: list[tuple[str, dict[str, Any]]] = []
                 for hit in page.hits:
                     source = hit.get("_source")
                     document_id = hit.get("_id")
                     if isinstance(document_id, str) and isinstance(source, dict):
                         documents.append((document_id, source))
+                if documents:
+                    yield documents
                 last_sort = page.hits[-1].get("sort")
                 search_after = last_sort if isinstance(last_sort, list) else None
                 if search_after is None:
                     break
         finally:
             self.close_point_in_time(pit_id=pit_id)
+
+    def iterate_documents(
+        self,
+        *,
+        index: str,
+        page_size: int = 250,
+        source_includes: list[str] | None = None,
+    ) -> list[tuple[str, dict[str, Any]]]:
+        documents: list[tuple[str, dict[str, Any]]] = []
+        for batch in self.iterate_document_batches(
+            index=index,
+            page_size=page_size,
+            source_includes=source_includes,
+        ):
+            documents.extend(batch)
         return documents

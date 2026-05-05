@@ -172,21 +172,18 @@ class RemoteAnalysisSyncService:
         progress_callback: ProgressCallback | None = None,
         progress_label: str,
     ) -> int:
-        documents = source_client.iterate_documents(
+        copied = 0
+        for batch in source_client.iterate_document_batches(
             index=source_index,
             page_size=250,
             source_includes=source_fields,
-        )
-        if not documents:
-            return 0
-
-        copied = 0
-        for offset in range(0, len(documents), 250):
-            batch = documents[offset : offset + 250]
+        ):
             target_client.bulk_index(index=target_index, documents=batch)
             copied += len(batch)
-            if progress_callback is not None and (copied == len(documents) or copied % 1000 == 0):
+            if progress_callback is not None and copied % 1000 == 0:
                 progress_callback(f"{progress_label}: copied_documents={copied}.")
+        if progress_callback is not None and copied > 0 and copied % 1000 != 0:
+            progress_callback(f"{progress_label}: copied_documents={copied}.")
         return copied
 
     def pull_remote_to_local(self, *, progress_callback: ProgressCallback | None = None) -> AnalysisSyncSummary:
@@ -270,81 +267,100 @@ class RemoteAnalysisSyncService:
             documents=[("latest", document)],
         )
 
+    def _cleanup_staged_indices(
+        self,
+        *,
+        staged_indices: dict[str, str],
+        progress_callback: ProgressCallback | None = None,
+    ) -> None:
+        for key, staged_index in staged_indices.items():
+            if not self.remote_client.index_exists(index=staged_index):
+                continue
+            self.remote_client.delete_index(index=staged_index)
+            if progress_callback is not None:
+                progress_callback(
+                    "Deleted staged remote analysis index after failed publish: "
+                    f"{key} -> {staged_index}."
+                )
+
     def publish_local_to_remote(self, *, progress_callback: ProgressCallback | None = None) -> AnalysisSyncSummary:
         self._ensure_remote_enabled()
         run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
         counts: dict[str, int] = {}
         staged_indices: dict[str, str] = {}
+        try:
+            for spec in self.specs:
+                local_count = self.local_client.count_documents(index=spec.local_index, query={"match_all": {}})
+                counts[spec.key] = local_count
+                staged_index = f"{spec.remote_alias}-run-{run_id}"
+                staged_indices[spec.key] = staged_index
+                if progress_callback is not None:
+                    progress_callback(
+                        "Publishing local analysis index to remote stage: "
+                        f"local_index={spec.local_index}, staged_remote_index={staged_index}, documents={local_count}."
+                    )
+                self._recreate_index(self.remote_client, index=staged_index, mapping=spec.mapping)
+                copied = self._copy_index(
+                    source_client=self.local_client,
+                    source_index=spec.local_index,
+                    target_client=self.remote_client,
+                    target_index=staged_index,
+                    source_fields=spec.source_fields,
+                    progress_callback=progress_callback,
+                    progress_label=f"Publish progress for {spec.key}",
+                )
+                remote_count = self.remote_client.count_documents(index=staged_index, query={"match_all": {}})
+                if copied != local_count or remote_count != local_count:
+                    raise ElasticsearchClientError(
+                        "Remote publish validation failed: "
+                        f"{spec.key} local_count={local_count}, copied={copied}, remote_count={remote_count}."
+                    )
 
-        for spec in self.specs:
-            local_count = self.local_client.count_documents(index=spec.local_index, query={"match_all": {}})
-            counts[spec.key] = local_count
-            staged_index = f"{spec.remote_alias}-run-{run_id}"
-            staged_indices[spec.key] = staged_index
+            alias_actions: list[dict[str, Any]] = []
+            for spec in self.specs:
+                for existing_index in self.remote_client.get_alias_indices(alias=spec.remote_alias):
+                    alias_actions.append({"remove": {"index": existing_index, "alias": spec.remote_alias}})
+                alias_actions.append({"add": {"index": staged_indices[spec.key], "alias": spec.remote_alias}})
+            self.remote_client.update_aliases(actions=alias_actions)
+
+            self._ensure_metadata_index()
+            metadata_document = {
+                "run_id": run_id,
+                "mode": "publish_remote_analysis",
+                "published_at": _now_iso(),
+                "embedding_provider": get_duplicate_embedding_provider(),
+                "local_indices": {spec.key: spec.local_index for spec in self.specs},
+                "remote_aliases": {spec.key: spec.remote_alias for spec in self.specs},
+                "document_counts": counts,
+            }
+            self.remote_client.bulk_index(
+                index=self.metadata_index,
+                documents=[("published", metadata_document), (run_id, metadata_document)],
+            )
+            local_metadata_document = dict(metadata_document)
+            local_metadata_document["synced_at"] = _now_iso()
+            self._write_local_sync_state(local_metadata_document)
+
             if progress_callback is not None:
                 progress_callback(
-                    "Publishing local analysis index to remote stage: "
-                    f"local_index={spec.local_index}, staged_remote_index={staged_index}, documents={local_count}."
+                    "Remote analysis publish complete: "
+                    f"run_id={run_id}, article_documents={counts.get('articles', 0)}, "
+                    f"chunk_documents={counts.get('chunks', 0)}, "
+                    f"edge_documents={counts.get('edges', 0)}, "
+                    f"cluster_documents={counts.get('clusters', 0)}."
                 )
-            self._recreate_index(self.remote_client, index=staged_index, mapping=spec.mapping)
-            copied = self._copy_index(
-                source_client=self.local_client,
-                source_index=spec.local_index,
-                target_client=self.remote_client,
-                target_index=staged_index,
-                source_fields=spec.source_fields,
-                progress_callback=progress_callback,
-                progress_label=f"Publish progress for {spec.key}",
+            return AnalysisSyncSummary(
+                mode="publish_remote_analysis",
+                remoteRunId=run_id,
+                articleDocuments=counts.get("articles", 0),
+                chunkDocuments=counts.get("chunks", 0),
+                edgeDocuments=counts.get("edges", 0),
+                clusterDocuments=counts.get("clusters", 0),
+                remoteAliases={spec.key: spec.remote_alias for spec in self.specs},
             )
-            remote_count = self.remote_client.count_documents(index=staged_index, query={"match_all": {}})
-            if copied != local_count or remote_count != local_count:
-                raise ElasticsearchClientError(
-                    "Remote publish validation failed: "
-                    f"{spec.key} local_count={local_count}, copied={copied}, remote_count={remote_count}."
-                )
-
-        alias_actions: list[dict[str, Any]] = []
-        for spec in self.specs:
-            for existing_index in self.remote_client.get_alias_indices(alias=spec.remote_alias):
-                alias_actions.append({"remove": {"index": existing_index, "alias": spec.remote_alias}})
-            alias_actions.append({"add": {"index": staged_indices[spec.key], "alias": spec.remote_alias}})
-        self.remote_client.update_aliases(actions=alias_actions)
-
-        self._ensure_metadata_index()
-        metadata_document = {
-            "run_id": run_id,
-            "mode": "publish_remote_analysis",
-            "published_at": _now_iso(),
-            "embedding_provider": get_duplicate_embedding_provider(),
-            "local_indices": {spec.key: spec.local_index for spec in self.specs},
-            "remote_aliases": {spec.key: spec.remote_alias for spec in self.specs},
-            "document_counts": counts,
-        }
-        self.remote_client.bulk_index(
-            index=self.metadata_index,
-            documents=[("published", metadata_document), (run_id, metadata_document)],
-        )
-        local_metadata_document = dict(metadata_document)
-        local_metadata_document["synced_at"] = _now_iso()
-        self._write_local_sync_state(local_metadata_document)
-
-        if progress_callback is not None:
-            progress_callback(
-                "Remote analysis publish complete: "
-                f"run_id={run_id}, article_documents={counts.get('articles', 0)}, "
-                f"chunk_documents={counts.get('chunks', 0)}, "
-                f"edge_documents={counts.get('edges', 0)}, "
-                f"cluster_documents={counts.get('clusters', 0)}."
-            )
-        return AnalysisSyncSummary(
-            mode="publish_remote_analysis",
-            remoteRunId=run_id,
-            articleDocuments=counts.get("articles", 0),
-            chunkDocuments=counts.get("chunks", 0),
-            edgeDocuments=counts.get("edges", 0),
-            clusterDocuments=counts.get("clusters", 0),
-            remoteAliases={spec.key: spec.remote_alias for spec in self.specs},
-        )
+        except Exception:
+            self._cleanup_staged_indices(staged_indices=staged_indices, progress_callback=progress_callback)
+            raise
 
 
 def build_remote_analysis_sync_service() -> RemoteAnalysisSyncService:

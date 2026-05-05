@@ -4,9 +4,17 @@ services:
   backend:
     build:
       context: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        if [ "${BACKEND_RELOAD:-false}" = "true" ]; then
+          exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+        fi
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       APP_ENV: ${APP_ENV:-development}
+      BACKEND_RELOAD: ${BACKEND_RELOAD:-false}
       ELASTICSEARCH_LOCAL_URL: ${ELASTICSEARCH_LOCAL_URL:-http://elasticsearch:9200}
       SOURCE_ES_URL: ${SOURCE_ES_URL:-}
       SOURCE_ES_API_KEY: ${SOURCE_ES_API_KEY:-}

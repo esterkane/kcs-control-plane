@@ -86,6 +86,11 @@ Services started by `docker compose`:
 - Elasticsearch: `http://localhost:9200`
 - Kibana: `http://localhost:5601`
 
+The backend now defaults to a non-reloading process so long-running admin jobs are less likely to be interrupted mid-run.
+If you explicitly want backend auto-reload while editing code, set:
+
+- `BACKEND_RELOAD=true`
+
 Remote Elasticsearch roles can now be separated:
 
 - `SOURCE_ES_*`
@@ -102,6 +107,10 @@ If `REMOTE_ANALYSIS_ES_URL` and `REMOTE_ANALYSIS_ES_API_KEY` are left empty, the
 ```bash
 cp .env.example .env
 ```
+
+The default `.env` is intentionally safer for long-running jobs:
+
+- `BACKEND_RELOAD=false`
 
 2. Install backend dependencies:
 
@@ -124,6 +133,12 @@ cd ..
 
 ```bash
 make up
+```
+
+If you are actively changing backend code and want auto-reload in development:
+
+```bash
+BACKEND_RELOAD=true make up
 ```
 
 5. Open:
@@ -236,6 +251,8 @@ Instead it:
 
 This lets multiple users consume a shared published duplicate-analysis result without exposing half-finished local work.
 
+If publish fails after staging begins, the backend now deletes the staged remote indices it created during that failed run.
+
 ## Core Indices
 
 The backend currently works with these local indices:
@@ -322,3 +339,4 @@ docker compose config
 - First startup can take several minutes because model weights must be downloaded.
 - The model is published under `CC BY-NC 4.0`; review the license before production or commercial use.
 - The frontend still contains a mock/demo workflow fallback for a few older side-by-side compare screens, but the main cluster-review path is now live and API-backed.
+- Admin jobs are still in-process jobs. They are much safer now with `BACKEND_RELOAD=false`, but arbitrary backend restarts can still interrupt an in-flight job.
