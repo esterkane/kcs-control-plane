@@ -47,7 +47,7 @@ Use it before pushing to a shared remote.
 - Confirm member articles render.
 - Confirm strongest edges render.
 - Confirm article links open using:
-  - `https://support.elastic.dev/knowledge/view/<article-id>`
+  - `https://kb.example.com/knowledge/view/<article-id>`
 - Change the review decision and confirm the visible review state updates immediately.
 
 ### Lookup

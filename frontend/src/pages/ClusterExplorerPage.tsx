@@ -24,8 +24,10 @@ type ClusterExplorerPageProps = {
   onChangeLiveClusterPage: (page: number) => void;
 };
 
+const articleBaseUrl = (import.meta.env.VITE_SUPPORT_ARTICLE_BASE_URL ?? "").replace(/\/$/, "");
+
 function articleHref(articleId: string): string {
-  return `https://support.elastic.dev/knowledge/view/${articleId}`;
+  return articleBaseUrl ? `${articleBaseUrl}/${encodeURIComponent(articleId)}` : "#";
 }
 
 export function ClusterExplorerPage({

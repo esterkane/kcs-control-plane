@@ -21,8 +21,10 @@ type LookupPageProps = {
   onOpenCluster: (clusterId: string) => void;
 };
 
+const articleBaseUrl = (import.meta.env.VITE_SUPPORT_ARTICLE_BASE_URL ?? "").replace(/\/$/, "");
+
 function articleHref(articleId: string): string {
-  return `https://support.elastic.dev/knowledge/view/${articleId}`;
+  return articleBaseUrl ? `${articleBaseUrl}/${encodeURIComponent(articleId)}` : "#";
 }
 
 function isLiveSimilarSearchResponse(payload: unknown): payload is LiveSimilarSearchResponse {

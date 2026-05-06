@@ -64,7 +64,7 @@ Why those parts are not implemented yet:
 - article authoring and source-content write-back need stronger business rules and source-of-truth ownership
 - cluster quality and reviewer workflow needed to be stabilized first
 
-For a fuller status breakdown, see [docs/status.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/status.md).
+For a fuller status breakdown, see [docs/status.md](docs/status.md).
 
 ## Repository Layout
 
@@ -222,7 +222,7 @@ The page can show:
 
 Article links open in the support preview format:
 
-- `https://support.elastic.dev/knowledge/view/<article-id>`
+- `https://kb.example.com/knowledge/view/<article-id>`
 
 ### 3. Review persisted clusters
 
@@ -275,10 +275,10 @@ The backend currently works with these local indices:
 
 If remote analysis publishing is configured, those same logical datasets are also published under separate remote aliases such as:
 
-- `kcs-kb-analysis-articles-v1`
-- `kcs-kb-analysis-article-chunks-v1`
-- `kcs-kb-analysis-duplicate-edges-v1`
-- `kcs-kb-analysis-duplicate-clusters-v1`
+- `kb-analysis-articles`
+- `kb-analysis-article-chunks`
+- `kb-analysis-duplicate-edges`
+- `kb-analysis-duplicate-clusters`
 
 ## Main API Endpoints
 
@@ -328,13 +328,13 @@ docker compose config
 
 ## Documentation Map
 
-- [docs/architecture.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/architecture.md)
+- [docs/architecture.md](docs/architecture.md)
   system architecture and pipeline flow
-- [docs/status.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/status.md)
+- [docs/status.md](docs/status.md)
   implemented scope, limitations, and next steps
-- [docs/ui-qa.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/ui-qa.md)
+- [docs/ui-qa.md](docs/ui-qa.md)
   manual UI verification checklist and known UI caveats
-- [docs/tech-stack.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/tech-stack.md)
+- [docs/tech-stack.md](docs/tech-stack.md)
   detailed stack, configuration, and design-choice reference
 
 ## Notes

@@ -10,9 +10,9 @@ This document explains:
 
 It is meant to complement:
 
-- [README.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/README.md)
-- [docs/architecture.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/architecture.md)
-- [docs/status.md](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/docs/status.md)
+- [README.md](../README.md)
+- [docs/architecture.md](architecture.md)
+- [docs/status.md](status.md)
 
 ## Stack Overview
 

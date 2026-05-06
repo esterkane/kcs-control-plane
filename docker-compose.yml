@@ -18,7 +18,7 @@ services:
       ELASTICSEARCH_LOCAL_URL: ${ELASTICSEARCH_LOCAL_URL:-http://elasticsearch:9200}
       SOURCE_ES_URL: ${SOURCE_ES_URL:-}
       SOURCE_ES_API_KEY: ${SOURCE_ES_API_KEY:-}
-      SOURCE_ES_INDEX: ${SOURCE_ES_INDEX:-search-knowledge-articles-prod-v1}
+      SOURCE_ES_INDEX: ${SOURCE_ES_INDEX:-kb-articles-source-index}
       EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-stub}
       LOCAL_EMBEDDING_URL: ${LOCAL_EMBEDDING_URL:-http://local-embeddings:7997/v1/embeddings}
       LOCAL_EMBEDDING_FALLBACK_URLS: ${LOCAL_EMBEDDING_FALLBACK_URLS:-http://host.docker.internal:7997/v1/embeddings}

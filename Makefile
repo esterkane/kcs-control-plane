@@ -1,6 +1,6 @@
 SHELL := /bin/zsh
 
-.PHONY: up down backend-test frontend-test lint
+.PHONY: up down backend-test frontend-test lint precommit-install
 
 up:
 	docker compose up --build
@@ -17,3 +17,6 @@ frontend-test:
 lint:
 	cd backend && .venv/bin/python -m compileall app tests
 	cd frontend && npm run typecheck
+
+precommit-install:
+	pre-commit install

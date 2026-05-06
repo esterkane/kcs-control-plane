@@ -149,7 +149,7 @@ def get_source_es_api_key() -> str:
 
 
 def get_source_es_index() -> str:
-    return os.getenv("SOURCE_ES_INDEX", "search-knowledge-articles-prod-v1")
+    return os.getenv("SOURCE_ES_INDEX", "kb-articles-source-index")
 
 
 def get_target_es_url() -> str:
@@ -185,27 +185,27 @@ def is_remote_analysis_enabled() -> bool:
 
 
 def get_remote_analysis_normalized_alias() -> str:
-    return os.getenv("REMOTE_ANALYSIS_NORMALIZED_ALIAS", "kcs-kb-analysis-articles-v1")
+    return os.getenv("REMOTE_ANALYSIS_NORMALIZED_ALIAS", "kb-analysis-articles-v1")
 
 
 def get_remote_analysis_chunk_alias() -> str:
-    return os.getenv("REMOTE_ANALYSIS_CHUNK_ALIAS", "kcs-kb-analysis-article-chunks-v1")
+    return os.getenv("REMOTE_ANALYSIS_CHUNK_ALIAS", "kb-analysis-article-chunks-v1")
 
 
 def get_remote_analysis_duplicate_edge_alias() -> str:
-    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_EDGE_ALIAS", "kcs-kb-analysis-duplicate-edges-v1")
+    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_EDGE_ALIAS", "kb-analysis-duplicate-edges-v1")
 
 
 def get_remote_analysis_duplicate_cluster_alias() -> str:
-    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_CLUSTER_ALIAS", "kcs-kb-analysis-duplicate-clusters-v1")
+    return os.getenv("REMOTE_ANALYSIS_DUPLICATE_CLUSTER_ALIAS", "kb-analysis-duplicate-clusters-v1")
 
 
 def get_remote_analysis_metadata_index() -> str:
-    return os.getenv("REMOTE_ANALYSIS_METADATA_INDEX", "kcs-kb-analysis-sync-state-v1")
+    return os.getenv("REMOTE_ANALYSIS_METADATA_INDEX", "kb-analysis-sync-state-v1")
 
 
 def get_local_analysis_metadata_index() -> str:
-    return os.getenv("LOCAL_ANALYSIS_METADATA_INDEX", "kcs-kb-analysis-local-sync-state-v1")
+    return os.getenv("LOCAL_ANALYSIS_METADATA_INDEX", "kb-analysis-local-sync-state-v1")
 
 
 def get_remote_analysis_publish_lock_seconds() -> int:

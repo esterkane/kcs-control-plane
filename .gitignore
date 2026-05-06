@@ -15,3 +15,9 @@ frontend/node_modules/
 frontend/dist/
 backend/.mypy_cache/
 frontend/.vitest/
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+!.env.example

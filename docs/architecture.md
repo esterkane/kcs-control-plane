@@ -14,17 +14,13 @@ The architecture is built around one idea:
 ```mermaid
 flowchart LR
   A["Remote KB source index"] --> B["Ingestion / normalization"]
-  B --> C["Local article index
-kcs-kb-articles-v1"]
+  B --> C["Local article index\nkcs-kb-articles-v1"]
   C --> D["Article embedding backfill"]
   C --> E["Chunk generation"]
-  E --> F["Chunk embedding backfill
-kcs-kb-article-chunks-v1"]
-  D --> G["Duplicate edge materialization
-kcs-kb-duplicate-edges-v1"]
+  E --> F["Chunk embedding backfill\nkcs-kb-article-chunks-v1"]
+  D --> G["Duplicate edge materialization\nkcs-kb-duplicate-edges-v1"]
   F --> G
-  G --> H["Duplicate cluster materialization
-kcs-kb-duplicate-clusters-v1"]
+  G --> H["Duplicate cluster materialization\nkcs-kb-duplicate-clusters-v1"]
   H --> I["Review UI"]
   C -. "optional publish/pull" .- J["Remote analysis article alias"]
   F -. "optional publish/pull" .- K["Remote analysis chunk alias"]
@@ -36,26 +32,26 @@ kcs-kb-duplicate-clusters-v1"]
 
 ### Backend
 
-The backend is a FastAPI application in [backend/app](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app).
+The backend is a FastAPI application in [backend/app](../backend/app).
 
 Main areas:
 
 - ingestion:
-  - [backend/app/ingestion/kb.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/ingestion/kb.py)
+  - [backend/app/ingestion/kb.py](../backend/app/ingestion/kb.py)
 - duplicate embeddings:
-  - [backend/app/backfill/duplicate_embeddings.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/backfill/duplicate_embeddings.py)
+  - [backend/app/backfill/duplicate_embeddings.py](../backend/app/backfill/duplicate_embeddings.py)
 - chunking:
-  - [backend/app/dedup/chunking.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/dedup/chunking.py)
+  - [backend/app/dedup/chunking.py](../backend/app/dedup/chunking.py)
 - similarity search:
-  - [backend/app/similarity/service.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/similarity/service.py)
+  - [backend/app/similarity/service.py](../backend/app/similarity/service.py)
 - cluster materialization:
-  - [backend/app/clustering/service.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/clustering/service.py)
+  - [backend/app/clustering/service.py](../backend/app/clustering/service.py)
 - admin pipeline orchestration:
-  - [backend/app/admin_jobs.py](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/backend/app/admin_jobs.py)
+  - [backend/app/admin_jobs.py](../backend/app/admin_jobs.py)
 
 ### Frontend
 
-The frontend is a React + Vite application in [frontend/src](/Users/saru/support-projects/support/ai-tools/kcs-control-plane/frontend/src).
+The frontend is a React + Vite application in [frontend/src](../frontend/src).
 
 Main pages:
 
@@ -89,10 +85,10 @@ They may be the same physical Elasticsearch deployment, but they must not share 
 The source KB index stays read-only.
 Published analysis uses separate aliases such as:
 
-- `kcs-kb-analysis-articles-v1`
-- `kcs-kb-analysis-article-chunks-v1`
-- `kcs-kb-analysis-duplicate-edges-v1`
-- `kcs-kb-analysis-duplicate-clusters-v1`
+- `kb-analysis-articles`
+- `kb-analysis-article-chunks`
+- `kb-analysis-duplicate-edges`
+- `kb-analysis-duplicate-clusters`
 
 The Admin UI now surfaces:
 

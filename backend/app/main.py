@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,6 +11,10 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.clusters import router as clusters_router
 from app.api.routes.kb import router as kb_router
 from app.api.routes.system import router as system_router
+
+
+def env_flag(name: str) -> bool:
+    return os.getenv(name, "false").lower() in {"1", "true", "yes", "on"}
 
 
 @asynccontextmanager
@@ -34,7 +39,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(system_router)
-    app.include_router(admin_router)
+    if env_flag("ENABLE_ADMIN_ROUTES"):
+        app.include_router(admin_router)
     app.include_router(kb_router)
     app.include_router(clusters_router)
     return app
