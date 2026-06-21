@@ -1,0 +1,1208 @@
+[
+  {
+    "humanReviewState": "approved_family",
+    "cluster": {
+      "clusterId": "fam-strong-tri",
+      "articleIds": [
+        "a",
+        "b",
+        "c"
+      ],
+      "edgeIds": [
+        "e1",
+        "e2",
+        "e3"
+      ],
+      "memberCount": 3,
+      "reviewState": "pending_review",
+      "representativeArticleId": "a",
+      "representativeTitle": "Title a",
+      "memberships": [
+        {
+          "articleId": "a",
+          "title": "Title a",
+          "supportingEdgeIds": [
+            "e1",
+            "e3"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "b",
+          "title": "Title b",
+          "supportingEdgeIds": [
+            "e1",
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "c",
+          "title": "Title c",
+          "supportingEdgeIds": [
+            "e2",
+            "e3"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "a",
+          "rightArticleId": "b",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.95,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.95,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.95,
+            "totalScore": 0.95
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "a",
+          "sourceCandidateArticleId": "b",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e2",
+          "leftArticleId": "b",
+          "rightArticleId": "c",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.93,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.93,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.93,
+            "totalScore": 0.93
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "b",
+          "sourceCandidateArticleId": "c",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e3",
+          "leftArticleId": "a",
+          "rightArticleId": "c",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.92,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.92,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.92,
+            "totalScore": 0.92
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "a",
+          "sourceCandidateArticleId": "c",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "approved_family",
+    "cluster": {
+      "clusterId": "fam-strong-pair",
+      "articleIds": [
+        "p",
+        "q"
+      ],
+      "edgeIds": [
+        "e1"
+      ],
+      "memberCount": 2,
+      "reviewState": "pending_review",
+      "representativeArticleId": "p",
+      "representativeTitle": "Title p",
+      "memberships": [
+        {
+          "articleId": "p",
+          "title": "Title p",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "q",
+          "title": "Title q",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "p",
+          "rightArticleId": "q",
+          "label": "near_duplicate",
+          "accepted": true,
+          "totalScore": 0.9,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.9,
+            "bestChunkSimilarity": 0.8,
+            "titleSimilarity": 0.7,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.8,
+            "rerankScore": 0.9,
+            "totalScore": 0.9
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "p",
+          "sourceCandidateArticleId": "q",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "pending_review",
+    "cluster": {
+      "clusterId": "fam-bridge-line",
+      "articleIds": [
+        "x",
+        "y",
+        "z"
+      ],
+      "edgeIds": [
+        "e1",
+        "e2"
+      ],
+      "memberCount": 3,
+      "reviewState": "pending_review",
+      "representativeArticleId": "x",
+      "representativeTitle": "Title x",
+      "memberships": [
+        {
+          "articleId": "x",
+          "title": "Title x",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "y",
+          "title": "Title y",
+          "supportingEdgeIds": [
+            "e1",
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "z",
+          "title": "Title z",
+          "supportingEdgeIds": [
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "x",
+          "rightArticleId": "y",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.95,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.95,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.95,
+            "totalScore": 0.95
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "x",
+          "sourceCandidateArticleId": "y",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e2",
+          "leftArticleId": "y",
+          "rightArticleId": "z",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.92,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.92,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.92,
+            "totalScore": 0.92
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "y",
+          "sourceCandidateArticleId": "z",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "split_required",
+    "cluster": {
+      "clusterId": "fam-2comp",
+      "articleIds": [
+        "m",
+        "n",
+        "o",
+        "r"
+      ],
+      "edgeIds": [
+        "e1",
+        "e2"
+      ],
+      "memberCount": 4,
+      "reviewState": "pending_review",
+      "representativeArticleId": "m",
+      "representativeTitle": "Title m",
+      "memberships": [
+        {
+          "articleId": "m",
+          "title": "Title m",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "n",
+          "title": "Title n",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "o",
+          "title": "Title o",
+          "supportingEdgeIds": [
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "r",
+          "title": "Title r",
+          "supportingEdgeIds": [
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "m",
+          "rightArticleId": "n",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.95,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.95,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.95,
+            "totalScore": 0.95
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "m",
+          "sourceCandidateArticleId": "n",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e2",
+          "leftArticleId": "o",
+          "rightArticleId": "r",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.94,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.94,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.94,
+            "totalScore": 0.94
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "o",
+          "sourceCandidateArticleId": "r",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "split_required",
+    "cluster": {
+      "clusterId": "fam-2tri",
+      "articleIds": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+      ],
+      "edgeIds": [
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5",
+        "e6",
+        "e7"
+      ],
+      "memberCount": 6,
+      "reviewState": "pending_review",
+      "representativeArticleId": "a",
+      "representativeTitle": "Title a",
+      "memberships": [
+        {
+          "articleId": "a",
+          "title": "Title a",
+          "supportingEdgeIds": [
+            "e1",
+            "e3"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "b",
+          "title": "Title b",
+          "supportingEdgeIds": [
+            "e1",
+            "e2"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "c",
+          "title": "Title c",
+          "supportingEdgeIds": [
+            "e2",
+            "e3",
+            "e7"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "d",
+          "title": "Title d",
+          "supportingEdgeIds": [
+            "e4",
+            "e6",
+            "e7"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "e",
+          "title": "Title e",
+          "supportingEdgeIds": [
+            "e4",
+            "e5"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "f",
+          "title": "Title f",
+          "supportingEdgeIds": [
+            "e5",
+            "e6"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "a",
+          "rightArticleId": "b",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.95,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.95,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.95,
+            "totalScore": 0.95
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "a",
+          "sourceCandidateArticleId": "b",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e2",
+          "leftArticleId": "b",
+          "rightArticleId": "c",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.94,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.94,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.94,
+            "totalScore": 0.94
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "b",
+          "sourceCandidateArticleId": "c",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e3",
+          "leftArticleId": "a",
+          "rightArticleId": "c",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.93,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.93,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.93,
+            "totalScore": 0.93
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "a",
+          "sourceCandidateArticleId": "c",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e4",
+          "leftArticleId": "d",
+          "rightArticleId": "e",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.95,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.95,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.95,
+            "totalScore": 0.95
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "d",
+          "sourceCandidateArticleId": "e",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e5",
+          "leftArticleId": "e",
+          "rightArticleId": "f",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.94,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.94,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.94,
+            "totalScore": 0.94
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "e",
+          "sourceCandidateArticleId": "f",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e6",
+          "leftArticleId": "d",
+          "rightArticleId": "f",
+          "label": "exact_duplicate",
+          "accepted": true,
+          "totalScore": 0.93,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.93,
+            "bestChunkSimilarity": 0.7,
+            "titleSimilarity": 0.6,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.7,
+            "rerankScore": 0.93,
+            "totalScore": 0.93
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "d",
+          "sourceCandidateArticleId": "f",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        },
+        {
+          "edgeId": "e7",
+          "leftArticleId": "c",
+          "rightArticleId": "d",
+          "label": "near_duplicate",
+          "accepted": true,
+          "totalScore": 0.79,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.79,
+            "bestChunkSimilarity": 0.5,
+            "titleSimilarity": 0.5,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.5,
+            "rerankScore": 0.79,
+            "totalScore": 0.79
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "c",
+          "sourceCandidateArticleId": "d",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "rejected_family",
+    "cluster": {
+      "clusterId": "fam-weak",
+      "articleIds": [
+        "s",
+        "t"
+      ],
+      "edgeIds": [
+        "e1"
+      ],
+      "memberCount": 2,
+      "reviewState": "pending_review",
+      "representativeArticleId": "s",
+      "representativeTitle": "Title s",
+      "memberships": [
+        {
+          "articleId": "s",
+          "title": "Title s",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "t",
+          "title": "Title t",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "s",
+          "rightArticleId": "t",
+          "label": "near_duplicate",
+          "accepted": true,
+          "totalScore": 0.7,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.7,
+            "bestChunkSimilarity": 0.4,
+            "titleSimilarity": 0.4,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.4,
+            "rerankScore": 0.7,
+            "totalScore": 0.7
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "s",
+          "sourceCandidateArticleId": "t",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "pending_review",
+    "cluster": {
+      "clusterId": "fam-mixed",
+      "articleIds": [
+        "u",
+        "v"
+      ],
+      "edgeIds": [
+        "e1"
+      ],
+      "memberCount": 2,
+      "reviewState": "pending_review",
+      "representativeArticleId": "u",
+      "representativeTitle": "Title u",
+      "memberships": [
+        {
+          "articleId": "u",
+          "title": "Title u",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "v",
+          "title": "Title v",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "u",
+          "rightArticleId": "v",
+          "label": "near_duplicate",
+          "accepted": true,
+          "totalScore": 0.8,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.8,
+            "bestChunkSimilarity": 0.5,
+            "titleSimilarity": 0.5,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.5,
+            "rerankScore": 0.8,
+            "totalScore": 0.8
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "u",
+          "sourceCandidateArticleId": "v",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "humanReviewState": "approved_family",
+    "cluster": {
+      "clusterId": "fam-mixed2",
+      "articleIds": [
+        "g",
+        "h"
+      ],
+      "edgeIds": [
+        "e1"
+      ],
+      "memberCount": 2,
+      "reviewState": "pending_review",
+      "representativeArticleId": "g",
+      "representativeTitle": "Title g",
+      "memberships": [
+        {
+          "articleId": "g",
+          "title": "Title g",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        },
+        {
+          "articleId": "h",
+          "title": "Title h",
+          "supportingEdgeIds": [
+            "e1"
+          ],
+          "reasons": [
+            "shared_metadata"
+          ],
+          "sharedMetadata": {
+            "products": [
+              "Cloud"
+            ]
+          }
+        }
+      ],
+      "thresholds": {
+        "topN": 12,
+        "includeCve": false,
+        "includeChunkSeed": true,
+        "maxComponentSize": 12,
+        "weakEdgeThreshold": 0.78,
+        "analysisMode": "graph"
+      },
+      "materializedAt": "2026-04-28T12:00:00Z",
+      "edges": [
+        {
+          "edgeId": "e1",
+          "leftArticleId": "g",
+          "rightArticleId": "h",
+          "label": "near_duplicate",
+          "accepted": true,
+          "totalScore": 0.81,
+          "pairScores": {
+            "rrfScore": 0.1,
+            "articleEmbeddingSimilarity": 0.81,
+            "bestChunkSimilarity": 0.5,
+            "titleSimilarity": 0.5,
+            "summarySimilarity": 0.5,
+            "metadataAgreement": 0.5,
+            "rerankScore": 0.81,
+            "totalScore": 0.81
+          },
+          "evidence": {
+            "sharedMetadata": {
+              "products": [
+                "Cloud"
+              ]
+            },
+            "mostSimilarChunks": [],
+            "reasons": [
+              "shared_metadata"
+            ]
+          },
+          "sourceQueryArticleId": "g",
+          "sourceCandidateArticleId": "h",
+          "materializedAt": "2026-04-28T12:00:00Z"
+        }
+      ]
+    }
+  }
+]

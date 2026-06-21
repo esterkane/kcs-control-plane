@@ -73,6 +73,23 @@ uvicorn, pytest). Do not invent ruff/mypy steps.
 4. React + Vite + TS frontend (`frontend/src`) reviews persisted clusters: Lookup, Review Queue, Cluster Explorer, Cluster Detail, Admin.
 5. Optional remote-analysis sync publishes/pulls the four datasets as shared aliases (`kb-analysis-*`) with a publish lease and stale-local guard; the source KB index stays read-only.
 6. A **read-only** MCP server (`backend/app/mcp`) exposes the duplicate/review core as agent tools (`find_similar`, `get_cluster`, `list_review_queue`) — thin adapters over the existing similarity/cluster services returning the same shapes as the HTTP routes.
+7. An optional **multi-agent editorial supervisor** (`backend/app/agents`, gated behind `AGENTS_ENABLED`, default off) **wraps** the deterministic pipeline as tools: a ReviewerAgent proposes one of the four review states (deterministic provider by default), a SupervisorAgent routes (auto-approve / split / reject / send-to-human), and an AuthoringAgent drafts a canonical merged article (DRAFT-only). Every decision is logged as an episode.
+
+## Editorial supervisor (multi-agent) architecture
+
+- **Package**: `backend/app/agents/` — `tools.py` (thin accessors reusing the read-only
+  `get_cluster` MCP tool / cluster service), `providers.py` (the `AgentReasoningProvider`
+  Protocol + deterministic/LLM impls, mirroring `app/explanations/providers.py`),
+  `reviewer.py`, `authoring.py`, `routing.py` (pure function), `supervisor.py`,
+  `episodes.py`, `eval.py` (+ committed fixture under `fixtures/`).
+- **Routing**: `route_proposal(proposal, signals)` is pure and testable —
+  `approved_family` + high confidence + strong edges → `auto_approve` (persist
+  `approved_family` + attach draft); `split_required` → `split`; confident
+  `rejected_family` → `reject`; everything else (`pending_review`, low confidence,
+  disagreement) → `send_to_human` (no state change).
+- **Episodes**: every decision persists to `kcs-kb-agent-episodes-v1` via the existing
+  `_ensure_index` (create-if-missing) pattern, behind an `EpisodeRepository` that is faked
+  in tests. `human_outcome` is null at write time, filled later by a human.
 
 ## Invariants I must never break
 
@@ -83,6 +100,7 @@ uvicorn, pytest). Do not invent ruff/mypy steps.
 
 Repo-specific invariants:
 - **Source KB index is read-only.** The pipeline writes only local `kcs-kb-*` indices and remote `kb-analysis-*` aliases. Review-state changes (`pending_review`, `approved_family`, `rejected_family`, `split_required`) persist editorial state only — they must not create/merge KB articles or write back to the source cluster.
+- **Editorial supervisor invariants.** The deterministic duplicate-cluster pipeline is **wrapped as tools, never replaced** — agents add no parallel clustering/dedup logic and obtain all cluster data through the agent tools (no fabricated members/edges/evidence). AuthoringAgent **drafts only**: drafts go to `kcs-kb-agent-drafts-v1` and **never** touch the source KB index (`kcs-kb-articles-v1`). All agent behaviour is gated behind `AGENTS_ENABLED` (**default false**); off-by-default must be byte-for-byte isolated. All model calls go behind the one `AgentReasoningProvider` interface (deterministic default, offline). Every agent decision is logged as an episode.
 - **Remote publish safety.** Publishing must stage versioned indices, validate document counts, take the publish lease, block stale local snapshots, and only then atomically switch aliases; clean up staged indices on failure. Source and analysis roles must never share index/alias names.
 - **Pydantic response models, not raw dicts.** API responses use the typed models in `backend/app/config.py` (camelCase aliases via `populate_by_name`).
 - **MCP tools are thin + read-only.** Tools in `backend/app/mcp` must stay thin adapters over the existing services (no similarity/cluster business logic in the MCP layer) and return the same shapes as the HTTP routes. They must use the structured error contract (`{isError, errorCategory, isRetryable, message, details}`, categories `validation|transient|business|permission`) and never leak stack traces or raw ES errors. No mutation tool (review-state change, ingestion, admin, publish) may be exposed without an `MCP_ALLOW_MUTATIONS` flag (default false); none exists today.
@@ -98,6 +116,7 @@ Repo-specific invariants:
 - README/`docs/` (`architecture.md`, `status.md`, `ui-qa.md`, `tech-stack.md`) updated if behavior, scope, or commands changed.
 - Type checks: mypy is N/A (not configured); frontend TypeScript `tsc --noEmit` must pass.
 - MCP tools stay thin + read-only: any new MCP tool is a thin adapter over an existing service, returns the same shape as its HTTP analogue, uses the structured error contract, has mock-backed unit tests under `backend/tests/`, and exposes no mutation without the `MCP_ALLOW_MUTATIONS` gate.
+- Editorial supervisor changes hold the invariants above: the deterministic pipeline is wrapped not replaced, AuthoringAgent drafts never write the source KB index, everything is gated behind `AGENTS_ENABLED=false` (with an off-by-default isolation test), model calls go through the provider interface (deterministic default so the test gate stays offline), every decision is logged as an episode, and the agreement eval runs offline on the committed fixture.
 
 ## External services & config
 

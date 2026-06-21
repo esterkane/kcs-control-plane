@@ -49,10 +49,14 @@ Implemented today:
   - `rejected_family`
   - `split_required`
 
+Implemented as a DRAFT-only milestone (behind `AGENTS_ENABLED`, default off):
+
+- drafting a canonical merged article from a cluster's member articles
+  (title + merged body + member-id provenance) via the `AuthoringAgent` — persisted to a
+  dedicated drafts store (`kcs-kb-agent-drafts-v1`), **never** written back to the source KB
+
 Not implemented yet:
 
-- creating a new canonical KB article from a cluster
-- merging source KB articles into a new draft article
 - pushing accepted editorial outcomes back to the remote/source KB content index
 - reviewer notes, audit trail, and assignment workflow
 - bulk review actions and richer cross-page filtering for the full cluster corpus in the UI
@@ -60,9 +64,64 @@ Not implemented yet:
 
 Why those parts are not implemented yet:
 
-- the current milestone is duplicate detection and review-state persistence
-- article authoring and source-content write-back need stronger business rules and source-of-truth ownership
+- source-content write-back needs stronger business rules and source-of-truth ownership
 - cluster quality and reviewer workflow needed to be stabilized first
+
+## Editorial supervisor (multi-agent)
+
+An optional multi-agent editorial layer **wraps** the deterministic duplicate-cluster
+pipeline as tools — it never replaces or re-implements clustering/dedup logic. It is
+gated behind the `AGENTS_ENABLED` feature flag (**default off**); when off, no agent
+behaviour is active and existing API/UI behaviour is unchanged.
+
+Three agents:
+
+- **ReviewerAgent** — fetches a persisted cluster via the read-only agent tools (which
+  reuse the existing `get_cluster` MCP tool / cluster service) and proposes a decision in
+  the same four review states the deterministic pipeline uses
+  (`approved_family` / `pending_review` / `rejected_family` / `split_required`), with a
+  justification that cites the specific edges/scores it used.
+- **AuthoringAgent** — for an approved family, drafts a canonical merged article
+  (title + merged body + member-id provenance). **DRAFT only**: persisted to
+  `kcs-kb-agent-drafts-v1`; it never writes the source KB index.
+- **SupervisorAgent** — applies a pure routing function over `(proposal, cluster signals)`:
+  - `auto_approve` — high edge-confidence **and** an `approved_family` proposal →
+    persist `approved_family` and attach an AuthoringAgent draft.
+  - `split` — an `split_required` proposal → persist `split_required`.
+  - `reject` — a confident `rejected_family` proposal → persist `rejected_family`.
+  - `send_to_human` — the ambiguous middle (`pending_review`, disagreement, low
+    confidence) → **do not** change review state; leave it for a human.
+
+  Only review state + the draft are ever persisted; humans stay in the loop on the
+  ambiguous middle.
+
+**Swappable provider interface.** Reasoning is behind one `AgentReasoningProvider`
+Protocol with two implementations: a default, offline, fully-deterministic
+`DeterministicReasoningProvider` (derives the decision from edge confidence/structure —
+no API key, no network), and a `LlmReasoningProvider` (Gemini, selected only via
+`AGENT_REASONING_PROVIDER=gemini`; never required for tests or the default path).
+
+**Episode logging (learning loop).** Every agent decision is logged as an episode
+(`{episode_id, cluster_id, ts, agent, inputs, proposal, routing_decision, draft_id?,
+human_outcome, provider, model, prompt_version}`) to `kcs-kb-agent-episodes-v1`.
+`human_outcome` is null at write time and is filled later when a human acts.
+
+**Agreement eval.** A held-out, committed labeled fixture
+(`backend/app/agents/fixtures/agreement_clusters.json`) lets you measure the deterministic
+ReviewerAgent's agreement vs. recorded human decisions — overall accuracy plus a per-class
+confusion over the four labels — fully offline:
+
+```bash
+cd backend && .venv/bin/python -m app.agents.eval \
+    --output-json reports/agreement.json --output-md reports/agreement.md
+```
+
+On the committed fixture the deterministic provider scores **0.75 overall (6/8)**
+(per-class: approved_family 2/3, pending_review 1/2, rejected_family 1/1,
+split_required 2/2).
+
+The live path (running the supervisor against a real Elasticsearch) is integration /
+run-locally and is not exercised by the offline test gate.
 
 For a fuller status breakdown, see [docs/status.md](docs/status.md).
 
