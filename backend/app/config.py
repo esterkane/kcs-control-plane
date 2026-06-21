@@ -307,6 +307,28 @@ def get_gemini_api_url() -> str:
     )
 
 
+def are_agents_enabled() -> bool:
+    """Feature flag for the multi-agent editorial supervisor (default OFF).
+
+    When false, no agent routes/jobs are mounted and the supervisor must no-op:
+    existing UI/API behaviour stays byte-for-byte unchanged.
+    """
+    return os.getenv("AGENTS_ENABLED", "false").casefold() in {"1", "true", "yes", "on"}
+
+
+def get_agent_reasoning_provider() -> str:
+    """Reasoning provider for the ReviewerAgent (default deterministic, offline)."""
+    return os.getenv("AGENT_REASONING_PROVIDER", "deterministic")
+
+
+def get_agent_episode_index() -> str:
+    return os.getenv("AGENT_EPISODE_INDEX", "kcs-kb-agent-episodes-v1")
+
+
+def get_agent_draft_index() -> str:
+    return os.getenv("AGENT_DRAFT_INDEX", "kcs-kb-agent-drafts-v1")
+
+
 def is_deepsearch_enabled() -> bool:
     return os.getenv("DEEPSEARCH_ENABLED", "false").casefold() in {"1", "true", "yes", "on"}
 
