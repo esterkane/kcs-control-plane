@@ -299,11 +299,27 @@ Similarity and lookup:
 
 Clusters:
 
-- `GET /kb/clusters`
+- `GET /kb/clusters` (optional `?reviewState=` filter)
 - `GET /kb/clusters/{cluster_id}`
 - `GET /kb/articles/{article_id}/cluster`
 - `PATCH /kb/clusters/{cluster_id}`
 - `POST /kb/clusters/materialize`
+
+## Agent Access (MCP)
+
+A **read-only** [MCP](https://modelcontextprotocol.io) server exposes the
+duplicate/review core as agent tools — thin adapters over the same services the
+HTTP routes use, returning the same payload shapes:
+
+- `find_similar(article_id, ...)` — wraps `GET /kb/articles/{id}/similar`
+- `get_cluster(cluster_id)` — wraps `GET /kb/clusters/{id}`
+- `list_review_queue(state, ...)` — wraps `GET /kb/clusters?reviewState={state}`
+
+It exposes lookups only — no ingestion, admin, publish, or review-state
+mutation. Run it with `cd backend && .venv/bin/python -m app.mcp.server` (stdio
+by default; `MCP_TRANSPORT=http` for streamable-HTTP). See
+[docs/mcp.md](docs/mcp.md) for the full tool list, error contract, examples, and
+client-registration snippet.
 
 ## Testing And Checks
 
@@ -336,6 +352,8 @@ docker compose config
   manual UI verification checklist and known UI caveats
 - [docs/tech-stack.md](docs/tech-stack.md)
   detailed stack, configuration, and design-choice reference
+- [docs/mcp.md](docs/mcp.md)
+  read-only MCP server: tools, error contract, run + client registration
 
 ## Notes
 

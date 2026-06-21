@@ -28,9 +28,10 @@ def test_list_clusters_endpoint(monkeypatch) -> None:
     )
 
     class FakeService:
-        def list_clusters(self, *, size: int = 20, page: int = 1):
+        def list_clusters(self, *, size: int = 20, page: int = 1, review_state=None):
             assert size == 50
             assert page == 2
+            assert review_state is None
             return expected
 
     monkeypatch.setattr("app.api.routes.clusters.build_duplicate_cluster_service", lambda: FakeService())
@@ -40,6 +41,51 @@ def test_list_clusters_endpoint(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["items"][0]["clusterId"] == "family-1"
     assert response.json()["page"] == 2
+
+
+def test_list_clusters_endpoint_with_review_state_filter(monkeypatch) -> None:
+    expected = ClusterListResponse.model_validate(
+        {
+            "count": 1,
+            "page": 1,
+            "pageSize": 20,
+            "totalPages": 1,
+            "items": [
+                {
+                    "clusterId": "family-1",
+                    "articleIds": ["a", "b"],
+                    "memberCount": 2,
+                    "reviewState": "split_required",
+                    "representativeArticleId": "a",
+                    "representativeTitle": "Article A",
+                }
+            ],
+        }
+    )
+
+    class FakeService:
+        def list_clusters(self, *, size: int = 20, page: int = 1, review_state=None):
+            assert review_state == "split_required"
+            return expected
+
+    monkeypatch.setattr("app.api.routes.clusters.build_duplicate_cluster_service", lambda: FakeService())
+
+    response = client.get("/kb/clusters?reviewState=split_required")
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["reviewState"] == "split_required"
+
+
+def test_list_clusters_endpoint_rejects_unknown_review_state(monkeypatch) -> None:
+    class FakeService:
+        def list_clusters(self, *, size: int = 20, page: int = 1, review_state=None):
+            raise AssertionError("service should not be called for an invalid state")
+
+    monkeypatch.setattr("app.api.routes.clusters.build_duplicate_cluster_service", lambda: FakeService())
+
+    response = client.get("/kb/clusters?reviewState=bogus")
+
+    assert response.status_code == 400
 
 
 def test_get_cluster_endpoint(monkeypatch) -> None:

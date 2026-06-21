@@ -1074,10 +1074,19 @@ class DuplicateClusterService:
             reviewStateCounts=review_state_counts,
         )
 
-    def list_clusters(self, *, size: int = 20, page: int = 1) -> ClusterListResponse:
+    def list_clusters(
+        self,
+        *,
+        size: int = 20,
+        page: int = 1,
+        review_state: ReviewState | None = None,
+    ) -> ClusterListResponse:
+        query: dict[str, Any] = (
+            {"term": {"review_state": review_state}} if review_state is not None else {"match_all": {}}
+        )
         total_count = self.es_client.count_documents(
             index=self.cluster_index,
-            query={"match_all": {}},
+            query=query,
         )
         total_pages = max(1, (total_count + size - 1) // size)
         bounded_page = min(max(page, 1), total_pages)
@@ -1088,7 +1097,7 @@ class DuplicateClusterService:
                 "size": size,
                 "from": offset,
                 "sort": [{"member_count": "desc"}, {"cluster_id": "asc"}],
-                "query": {"match_all": {}},
+                "query": query,
             },
         )
         items = [
