@@ -16,13 +16,19 @@ from app.explanations.service import ClusterSummaryResponse, build_explanation_s
 router = APIRouter(prefix="/kb", tags=["kb"])
 
 
+REVIEW_STATES = ("pending_review", "approved_family", "rejected_family", "split_required")
+
+
 @router.get("/clusters", response_model=ClusterListResponse)
 def list_clusters(
     size: int = Query(default=20, ge=1, le=100),
     page: int = Query(default=1, ge=1, le=10000),
+    review_state: str | None = Query(default=None, alias="reviewState"),
 ) -> ClusterListResponse:
+    if review_state is not None and review_state not in REVIEW_STATES:
+        raise HTTPException(status_code=400, detail=f"Unsupported review state: {review_state}")
     service = build_duplicate_cluster_service()
-    return service.list_clusters(size=size, page=page)
+    return service.list_clusters(size=size, page=page, review_state=review_state)  # type: ignore[arg-type]
 
 
 @router.get("/clusters/{cluster_id}", response_model=ClusterDetailResponse)

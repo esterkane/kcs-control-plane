@@ -32,6 +32,10 @@ docker compose config   # validate compose file
 # Frontend extras
 cd frontend && npm run typecheck   # tsc --noEmit
 cd frontend && npm run build       # tsc -b && vite build
+
+# Read-only MCP server (find_similar, get_cluster, list_review_queue)
+cd backend && .venv/bin/python -m app.mcp.server          # stdio (default)
+cd backend && MCP_TRANSPORT=http MCP_HTTP_PORT=8900 .venv/bin/python -m app.mcp.server
 ```
 
 CI quality gate: the only GitHub Actions workflow is `.github/workflows/secret-scan.yml`
@@ -50,6 +54,7 @@ uvicorn, pytest). Do not invent ruff/mypy steps.
 3. Full-refresh pipeline is orchestrated by in-process admin jobs (`admin_jobs.py`) and is **resumable** — ingestion/embeddings/chunks are reused when unchanged; edges and clusters are checkpoint-written incrementally.
 4. React + Vite + TS frontend (`frontend/src`) reviews persisted clusters: Lookup, Review Queue, Cluster Explorer, Cluster Detail, Admin.
 5. Optional remote-analysis sync publishes/pulls the four datasets as shared aliases (`kb-analysis-*`) with a publish lease and stale-local guard; the source KB index stays read-only.
+6. A **read-only** MCP server (`backend/app/mcp`) exposes the duplicate/review core as agent tools (`find_similar`, `get_cluster`, `list_review_queue`) — thin adapters over the existing similarity/cluster services returning the same shapes as the HTTP routes.
 
 ## Invariants I must never break
 
@@ -62,6 +67,7 @@ Repo-specific invariants:
 - **Source KB index is read-only.** The pipeline writes only local `kcs-kb-*` indices and remote `kb-analysis-*` aliases. Review-state changes (`pending_review`, `approved_family`, `rejected_family`, `split_required`) persist editorial state only — they must not create/merge KB articles or write back to the source cluster.
 - **Remote publish safety.** Publishing must stage versioned indices, validate document counts, take the publish lease, block stale local snapshots, and only then atomically switch aliases; clean up staged indices on failure. Source and analysis roles must never share index/alias names.
 - **Pydantic response models, not raw dicts.** API responses use the typed models in `backend/app/config.py` (camelCase aliases via `populate_by_name`).
+- **MCP tools are thin + read-only.** Tools in `backend/app/mcp` must stay thin adapters over the existing services (no similarity/cluster business logic in the MCP layer) and return the same shapes as the HTTP routes. They must use the structured error contract (`{isError, errorCategory, isRetryable, message, details}`, categories `validation|transient|business|permission`) and never leak stack traces or raw ES errors. No mutation tool (review-state change, ingestion, admin, publish) may be exposed without an `MCP_ALLOW_MUTATIONS` flag (default false); none exists today.
 
 ## Definition of done
 
@@ -73,6 +79,7 @@ Repo-specific invariants:
 - Pipeline resumability preserved; no write-back to the read-only source KB index.
 - README/`docs/` (`architecture.md`, `status.md`, `ui-qa.md`, `tech-stack.md`) updated if behavior, scope, or commands changed.
 - Type checks: mypy is N/A (not configured); frontend TypeScript `tsc --noEmit` must pass.
+- MCP tools stay thin + read-only: any new MCP tool is a thin adapter over an existing service, returns the same shape as its HTTP analogue, uses the structured error contract, has mock-backed unit tests under `backend/tests/`, and exposes no mutation without the `MCP_ALLOW_MUTATIONS` gate.
 
 ## External services & config
 
