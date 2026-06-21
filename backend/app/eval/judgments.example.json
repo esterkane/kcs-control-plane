@@ -1,0 +1,9 @@
+{
+  "kb-article-0001": ["kb-article-0002", "kb-article-0003"],
+  "kb-article-0010": ["kb-article-0011"],
+  "kb-article-0020": {
+    "kb-article-0021": 2.0,
+    "kb-article-0022": 1.0
+  },
+  "kb-article-0030": ["kb-article-0031", "kb-article-0032", "kb-article-0033"]
+}

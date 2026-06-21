@@ -36,7 +36,25 @@ cd frontend && npm run build       # tsc -b && vite build
 # Read-only MCP server (find_similar, get_cluster, list_review_queue)
 cd backend && .venv/bin/python -m app.mcp.server          # stdio (default)
 cd backend && MCP_TRANSPORT=http MCP_HTTP_PORT=8900 .venv/bin/python -m app.mcp.server
+
+# Duplicate-retrieval evaluation via the shared relevance_eval skill (optional extra)
+pip install -e "backend/.[eval]"
+cd backend && .venv/bin/python -m app.eval.run_eval \
+    --judgments app/eval/judgments.example.json \
+    --thresholds app/eval/thresholds.example.json --output-dir reports
 ```
+
+Duplicate-retrieval metrics (Precision@k / MRR@k / nDCG@k) come from the shared,
+backend-agnostic `relevance_eval` skill (git dep in the `[eval]` extra), NOT
+bespoke eval code. `backend/app/eval/skill_adapter.py` is a thin adapter injecting
+the existing similar-article service into the skill's
+`search_fn(seed_article_id, strategy) -> [candidate_id]` contract; strategies
+(`embedding`, `chunk_seeded`) only toggle flags `find_similar` already accepts
+(`include_chunk_seed`, `include_cve`) — no similarity logic in the adapter. The
+runner (`app/eval/run_eval.py`) needs live Elasticsearch (run-locally /
+integration); the offline tests
+(`backend/tests/test_eval_skill_integration.py`) cover the adapter + skill with
+fakes.
 
 CI quality gate: the only GitHub Actions workflow is `.github/workflows/secret-scan.yml`
 (gitleaks on every push/PR). There is **no** CI job running pytest, vitest, ruff, or mypy —
