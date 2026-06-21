@@ -342,6 +342,38 @@ make lint
 docker compose config
 ```
 
+## Duplicate-Retrieval Evaluation
+
+Duplicate-retrieval quality (Precision@k / MRR@k / nDCG@k) is scored by the
+shared, backend-agnostic [`relevance_eval`](https://github.com/esterkane/elastic-ai-search-decision-lab/tree/main/skills/relevance-eval)
+skill, installed as an optional `eval` extra (a git dependency). A thin adapter
+(`backend/app/eval/skill_adapter.py`) injects the existing similar-article
+service into the skill's `search_fn(seed_article_id, strategy) -> [candidate_id]`
+contract — the seed article id is the "query", the ranked candidate duplicate ids
+are the "documents". No similarity logic lives in the adapter; strategies only
+toggle flags the service already accepts:
+
+- `embedding` — default article-level lexical + vector signals (`include_chunk_seed=False`)
+- `chunk_seeded` — adds the chunk-seed signal (`include_chunk_seed=True`)
+
+```bash
+# Install the skill (optional extra)
+pip install -e "backend/.[eval]"
+
+# Run the eval (needs a live Elasticsearch backend — run-locally / integration)
+cd backend && .venv/bin/python -m app.eval.run_eval \
+    --judgments app/eval/judgments.example.json \
+    --thresholds app/eval/thresholds.example.json \
+    --output-dir reports
+```
+
+The runner writes `reports/duplicate_eval.{json,md}`, prints the Markdown, and
+exits non-zero if the thresholds gate (`backend/app/eval/thresholds.example.json`,
+keys `"<metric>@<k>"`) fails. Judgments map a seed article id to its known
+duplicate ids (`backend/app/eval/judgments.example.json`). The offline unit tests
+in `backend/tests/test_eval_skill_integration.py` exercise the adapter and the
+skill with fakes, so they need no live Elasticsearch.
+
 ## Documentation Map
 
 - [docs/architecture.md](docs/architecture.md)
