@@ -325,6 +325,26 @@ def get_agent_episode_index() -> str:
     return os.getenv("AGENT_EPISODE_INDEX", "kcs-kb-agent-episodes-v1")
 
 
+def is_memory_enabled() -> bool:
+    """Feature flag for episodic recall-before-acting (default OFF).
+
+    Independent of ``AGENTS_ENABLED``. When false, NO recall happens: the supervisor
+    path embeds/logs episodes exactly as before but never queries past episodes for
+    precedent, so behaviour stays reproducible and byte-for-byte unchanged.
+    """
+    return os.getenv("MEMORY_ENABLED", "false").casefold() in {"1", "true", "yes", "on"}
+
+
+def get_memory_recall_k() -> int:
+    """How many most-similar past episodes recall returns as precedent (default 5)."""
+    raw = os.getenv("MEMORY_RECALL_K", "5").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return 5
+    return value if value > 0 else 5
+
+
 def get_agent_draft_index() -> str:
     return os.getenv("AGENT_DRAFT_INDEX", "kcs-kb-agent-drafts-v1")
 

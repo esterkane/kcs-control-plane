@@ -1,0 +1,43 @@
+{
+  "_comment": "Held-out labeled episodes for duplicate-edge threshold recalibration. Persisted (snake_case) episode docs whose human_outcome is decisive. approved_family => edges are true duplicates (positive); rejected_family/split_required => the strong-duplicate claim was wrong (negative). Used fully offline by app.agents.learning and its test. The current threshold 0.84 mislabels several near_duplicate edges that scored 0.80-0.83 but were human-approved; a lower threshold (~0.80) recovers them without admitting the human-rejected ~0.79 edges.",
+  "train": [
+    {"episode_id": "ep-t1", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-t1a", "label": "near_duplicate", "total_score": 0.81},
+      {"edge_id": "e-t1b", "label": "near_duplicate", "total_score": 0.86}
+    ]},
+    {"episode_id": "ep-t2", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-t2a", "label": "near_duplicate", "total_score": 0.80},
+      {"edge_id": "e-t2b", "label": "exact_duplicate", "total_score": 0.97}
+    ]},
+    {"episode_id": "ep-t3", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-t3a", "label": "near_duplicate", "total_score": 0.83}
+    ]},
+    {"episode_id": "ep-t4", "human_outcome": "rejected_family", "strongest_edges": [
+      {"edge_id": "e-t4a", "label": "near_duplicate", "total_score": 0.79}
+    ]},
+    {"episode_id": "ep-t5", "human_outcome": "split_required", "strongest_edges": [
+      {"edge_id": "e-t5a", "label": "near_duplicate", "total_score": 0.785}
+    ]},
+    {"episode_id": "ep-t6", "human_outcome": "pending_review", "strongest_edges": [
+      {"edge_id": "e-t6a", "label": "near_duplicate", "total_score": 0.99}
+    ]}
+  ],
+  "holdout": [
+    {"episode_id": "ep-h1", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-h1a", "label": "near_duplicate", "total_score": 0.82},
+      {"edge_id": "e-h1b", "label": "near_duplicate", "total_score": 0.88}
+    ]},
+    {"episode_id": "ep-h2", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-h2a", "label": "near_duplicate", "total_score": 0.805}
+    ]},
+    {"episode_id": "ep-h3", "human_outcome": "approved_family", "strongest_edges": [
+      {"edge_id": "e-h3a", "label": "exact_duplicate", "total_score": 0.98}
+    ]},
+    {"episode_id": "ep-h4", "human_outcome": "rejected_family", "strongest_edges": [
+      {"edge_id": "e-h4a", "label": "near_duplicate", "total_score": 0.79}
+    ]},
+    {"episode_id": "ep-h5", "human_outcome": "split_required", "strongest_edges": [
+      {"edge_id": "e-h5a", "label": "near_duplicate", "total_score": 0.775}
+    ]}
+  ]
+}

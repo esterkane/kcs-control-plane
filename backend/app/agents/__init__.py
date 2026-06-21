@@ -32,6 +32,20 @@ from app.agents.routing import route_proposal
 from app.agents.reviewer import ReviewerAgent
 from app.agents.authoring import AuthoringAgent, SOURCE_KB_INDEX
 from app.agents.supervisor import SupervisorAgent, SupervisorOutcome
+from app.agents.memory import (
+    EpisodicMemory,
+    LocalDeterministicEmbedder,
+    RecalledEpisode,
+    format_precedent,
+)
+from app.agents.learning import (
+    LabeledEdge,
+    RecalibrationRejected,
+    ThresholdProposal,
+    apply_recalibration,
+    labeled_edges_from_episodes,
+    recalibrate,
+)
 
 __all__ = [
     "AgentEpisode",
@@ -40,12 +54,22 @@ __all__ = [
     "AuthoringAgent",
     "AuthoringDraft",
     "DeterministicReasoningProvider",
+    "EpisodicMemory",
+    "LabeledEdge",
     "LlmReasoningProvider",
+    "LocalDeterministicEmbedder",
+    "RecalibrationRejected",
+    "RecalledEpisode",
     "ReviewerAgent",
     "RoutingDecision",
     "SOURCE_KB_INDEX",
     "SupervisorAgent",
     "SupervisorOutcome",
+    "ThresholdProposal",
+    "apply_recalibration",
     "create_reasoning_provider",
+    "format_precedent",
+    "labeled_edges_from_episodes",
+    "recalibrate",
     "route_proposal",
 ]

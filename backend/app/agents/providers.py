@@ -40,7 +40,9 @@ WEAK_SCORE = 0.78
 class AgentReasoningProvider(Protocol):
     provider_name: str
 
-    def propose(self, cluster: ClusterDetailResponse) -> AgentProposal: ...
+    def propose(
+        self, cluster: ClusterDetailResponse, *, precedent: str = ""
+    ) -> AgentProposal: ...
 
 
 def _strong_edges(edges: list[DuplicateEdgeDocument]) -> list[DuplicateEdgeDocument]:
@@ -98,7 +100,11 @@ class DeterministicReasoningProvider:
 
     provider_name = "deterministic"
 
-    def propose(self, cluster: ClusterDetailResponse) -> AgentProposal:
+    def propose(self, cluster: ClusterDetailResponse, *, precedent: str = "") -> AgentProposal:
+        # ``precedent`` (recalled similar past episodes) is accepted for interface parity
+        # with the LLM provider, but the deterministic decision is derived ONLY from the
+        # cluster's edge structure: recall must never change the deterministic outcome, so
+        # the default code path stays reproducible whether or not memory is enabled.
         edges = cluster.edges
         scores = [edge.total_score for edge in edges]
         max_score = max(scores) if scores else 0.0
@@ -208,7 +214,12 @@ class HttpxReasoningTransport:
         )
 
 
-def _reviewer_prompt(cluster: ClusterDetailResponse) -> str:
+def _reviewer_prompt(cluster: ClusterDetailResponse, *, precedent: str = "") -> str:
+    precedent_block = (
+        f"Precedent (similar past decisions; consider but do not blindly copy):\n{precedent}\n"
+        if precedent
+        else ""
+    )
     return (
         "You are an editorial reviewer for deterministic KB duplicate clusters.\n"
         "Decide whether the cluster is a single duplicate family.\n"
@@ -217,6 +228,7 @@ def _reviewer_prompt(cluster: ClusterDetailResponse) -> str:
         "Cite the specific edge ids/scores you used in citedEdgeIds and justification.\n"
         "Never invent members or edges beyond those provided.\n"
         f"Prompt version: {PROMPT_VERSION}\n"
+        f"{precedent_block}"
         f"Cluster id: {cluster.cluster_id}\n"
         f"Member article ids: {cluster.article_ids}\n"
         f"Representative: {cluster.representative_article_id}\n"
@@ -245,7 +257,7 @@ class LlmReasoningProvider:
         self.api_key = api_key
         self.transport = transport or HttpxReasoningTransport()
 
-    def propose(self, cluster: ClusterDetailResponse) -> AgentProposal:
+    def propose(self, cluster: ClusterDetailResponse, *, precedent: str = "") -> AgentProposal:
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         if self.api_key:
             headers["x-goog-api-key"] = self.api_key
@@ -254,7 +266,7 @@ class LlmReasoningProvider:
             self.api_url,
             headers=headers,
             json_body={
-                "contents": [{"parts": [{"text": _reviewer_prompt(cluster)}]}],
+                "contents": [{"parts": [{"text": _reviewer_prompt(cluster, precedent=precedent)}]}],
                 "generationConfig": {"temperature": 0.1},
             },
         )

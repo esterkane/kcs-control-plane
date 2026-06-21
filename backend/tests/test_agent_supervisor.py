@@ -30,7 +30,8 @@ class _FixedProvider:
         self._decision = decision
         self._confidence = confidence
 
-    def propose(self, cluster) -> AgentProposal:
+    def propose(self, cluster, *, precedent: str = "") -> AgentProposal:
+        self.last_precedent = precedent
         return AgentProposal(
             decision=self._decision,  # type: ignore[arg-type]
             justification="fixed",
