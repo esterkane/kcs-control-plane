@@ -29,16 +29,27 @@ class ReviewerAgent:
             reasoning_provider or DeterministicReasoningProvider()
         )
 
-    def review_cluster(self, cluster_id: str) -> tuple[ClusterDetailResponse, AgentProposal]:
+    def review_cluster(
+        self, cluster_id: str, *, precedent: str = ""
+    ) -> tuple[ClusterDetailResponse, AgentProposal]:
         """Fetch the cluster via tools and return (cluster, proposal).
 
         The cluster is returned alongside the proposal so the supervisor can route on the
-        same data the reviewer reasoned over, without a second fetch.
+        same data the reviewer reasoned over, without a second fetch. ``precedent`` is the
+        recalled-episode context (empty when memory is disabled).
         """
-        cluster = fetch_cluster(cluster_id, service=self.cluster_service)
-        proposal = self.review(cluster)
+        cluster = self.fetch(cluster_id)
+        proposal = self.review(cluster, precedent=precedent)
         return cluster, proposal
 
-    def review(self, cluster: ClusterDetailResponse) -> AgentProposal:
+    def fetch(self, cluster_id: str) -> ClusterDetailResponse:
+        """Fetch a persisted cluster via the read-only tools (no reasoning).
+
+        Lets a caller (the supervisor) obtain the cluster before proposing, e.g. to recall
+        precedent from similar past episodes, without a second fetch at review time.
+        """
+        return fetch_cluster(cluster_id, service=self.cluster_service)
+
+    def review(self, cluster: ClusterDetailResponse, *, precedent: str = "") -> AgentProposal:
         """Propose a decision for an already-fetched cluster."""
-        return self.reasoning_provider.propose(cluster)
+        return self.reasoning_provider.propose(cluster, precedent=precedent)

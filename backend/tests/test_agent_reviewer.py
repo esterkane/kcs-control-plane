@@ -90,7 +90,7 @@ class _FakeProvider:
     def __init__(self, decision: str) -> None:
         self._decision = decision
 
-    def propose(self, cluster) -> AgentProposal:
+    def propose(self, cluster, *, precedent: str = "") -> AgentProposal:
         return AgentProposal(
             decision=self._decision,  # type: ignore[arg-type]
             justification="injected",

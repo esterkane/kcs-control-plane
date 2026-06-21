@@ -91,6 +91,32 @@ uvicorn, pytest). Do not invent ruff/mypy steps.
   `_ensure_index` (create-if-missing) pattern, behind an `EpisodeRepository` that is faked
   in tests. `human_outcome` is null at write time, filled later by a human.
 
+## How it learns (memory + learning layer)
+
+Built on the existing episode log and vector infra — **no new vector store, no parallel
+clustering logic**. Files: `memory.py` (episodic recall), `learning.py` (threshold
+recalibration), `fixtures/labeled_edges_episodes.json` (committed offline fixture).
+
+- **Episodic recall as precedent.** Episodes carry an `inputs_summary` and its `embedding`
+  stored **on the episode doc** in `kcs-kb-agent-episodes-v1` (`dense_vector`). The
+  `EpisodicMemory.recall` service runs an ES `script_score` cosine over that index to
+  return the *k* most similar past episodes (decision + human outcome). The SupervisorAgent
+  recalls **before** the ReviewerAgent proposes and feeds the outcomes in as precedent;
+  recalled ids are logged on the new episode (`recalled_episode_ids`) for audit. Gated by
+  `MEMORY_ENABLED` (**default off**, independent of `AGENTS_ENABLED`): off → no recall,
+  reproducible. The deterministic provider never lets precedent change its decision. The
+  default embedder (`LocalDeterministicEmbedder`) is offline so the test gate never calls
+  out.
+- **Threshold recalibration, proposed + gated, never silent.** `learning.recalibrate`
+  derives labeled edges from human-reviewed episodes (`approved_family` → positive,
+  `rejected_family`/`split_required` → negative) and **proposes** a recalibrated
+  duplicate-edge strong threshold (`min_total_score`). It evaluates current vs proposed on
+  a **held-out split** and sets `should_apply` only when held-out F1 improves with no
+  precision/recall regression; it never mutates `ClusterThresholds`. `apply_recalibration`
+  is a separate gated step that refuses unless the gate passed. Grouping is honest: there
+  is **no real "topic" field** — recalibration reports per the real edge `label`
+  (`near_duplicate`) and overall.
+
 ## Invariants I must never break
 
 1. **Pipeline determinism / resumability.** The duplicate-analysis pipeline (ingest → article embeddings → chunks → edge/cluster materialization) must stay resumable and idempotent: unchanged articles/chunks keep their enrichment, embeddings are only recomputed when comparison content changes (`compare_text_hash`), and edges/clusters are checkpoint-written so an interrupted run resumes from persisted state rather than rescanning from zero. See `backend/tests/test_backfill_idempotency.py` and `test_cluster_materialization.py`.
@@ -117,6 +143,7 @@ Repo-specific invariants:
 - Type checks: mypy is N/A (not configured); frontend TypeScript `tsc --noEmit` must pass.
 - MCP tools stay thin + read-only: any new MCP tool is a thin adapter over an existing service, returns the same shape as its HTTP analogue, uses the structured error contract, has mock-backed unit tests under `backend/tests/`, and exposes no mutation without the `MCP_ALLOW_MUTATIONS` gate.
 - Editorial supervisor changes hold the invariants above: the deterministic pipeline is wrapped not replaced, AuthoringAgent drafts never write the source KB index, everything is gated behind `AGENTS_ENABLED=false` (with an off-by-default isolation test), model calls go through the provider interface (deterministic default so the test gate stays offline), every decision is logged as an episode, and the agreement eval runs offline on the committed fixture.
+- Memory + learning layer holds: episodic recall is gated behind `MEMORY_ENABLED=false` (with an off-by-default test proving no recall when off, keeping behaviour reproducible), episodes are embedded with the existing provider infra and store the embedding on the episode doc (no new vector store), recalled episode ids are logged for audit, and every learned threshold change is **proposed, evaluated against held-out precision/recall, and applied only if it improves** — `ClusterThresholds` is never silently mutated; the recalibration + its accept/reject tests run offline on the committed fixture.
 
 ## External services & config
 

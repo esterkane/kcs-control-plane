@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from app.agents.models import AgentEpisode, episode_to_document
-from app.config import get_agent_episode_index
+from app.config import get_agent_episode_index, get_duplicate_embedding_dims
 from app.elasticsearch.client import ElasticsearchClient
 
 EPISODE_INDEX_MAPPING: dict[str, Any] = {
@@ -23,6 +23,14 @@ EPISODE_INDEX_MAPPING: dict[str, Any] = {
             "ts": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
             "agent": {"type": "keyword"},
             "member_article_ids": {"type": "keyword"},
+            "inputs_summary": {"type": "text"},
+            "embedding": {
+                "type": "dense_vector",
+                "dims": get_duplicate_embedding_dims(),
+                "index": True,
+                "similarity": "cosine",
+            },
+            "recalled_episode_ids": {"type": "keyword"},
             "strongest_edges": {
                 "type": "nested",
                 "properties": {

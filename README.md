@@ -123,6 +123,56 @@ split_required 2/2).
 The live path (running the supervisor against a real Elasticsearch) is integration /
 run-locally and is not exercised by the offline test gate.
 
+## How it learns
+
+The editorial layer adds a memory + learning loop on top of the existing episode log —
+**no new vector store, no parallel clustering logic**. Two halves:
+
+**(A) Episodic memory — recall as precedent.** Each episode now carries a stable
+`inputs_summary` of the cluster it reasoned over and an `embedding` of that summary,
+stored **on the episode document** in `kcs-kb-agent-episodes-v1` (a `dense_vector`
+field). Before the ReviewerAgent proposes, the SupervisorAgent **recalls** the *k* most
+similar past episodes via an Elasticsearch `script_score` cosine over that same index and
+passes their outcomes (agent decision + human outcome) into the provider as **precedent**.
+The ids + similarities of the recalled episodes are written back onto the new episode
+(`recalled_episode_ids`) for auditability. Recall is gated by `MEMORY_ENABLED`
+(**default off**, independent of `AGENTS_ENABLED`): when off, no recall query is issued
+and behaviour is byte-for-byte reproducible. The deterministic provider accepts precedent
+for interface parity but never lets it change its rule-based decision, so the default path
+stays reproducible whether memory is on or off. Embeddings use the existing embedding
+provider contract; the offline default (`LocalDeterministicEmbedder`) needs no network, so
+tests and the default path never call out.
+
+**(B) Procedural learning — recalibrate the duplicate-edge threshold, gated.** From
+accumulated human decisions (episodes whose `human_outcome` is set: `approved_family` →
+the edges were true duplicates; `rejected_family`/`split_required` → the strong-duplicate
+claim was wrong), the learner derives labeled edges and **proposes** a recalibrated
+duplicate-edge *strong* threshold (`min_total_score`, the value
+`clustering.service._is_strong_near_duplicate` reads). It is **proposed → evaluated on a
+held-out labeled split → applied only if it improves**: `recalibrate` returns a proposal
+plus a before/after precision/recall report and `should_apply` only when held-out overall
+F1 strictly improves and neither precision nor recall regresses. It **never** mutates
+`ClusterThresholds`; `apply_recalibration` is a separate explicit step that refuses unless
+the gate passed.
+
+Grouping (honest note): edges and articles carry **no genuine "topic" field**. The only
+real per-edge grouping dimension is the edge `label` (`exact_duplicate` /
+`near_duplicate`), and exact-duplicate edges bypass the score threshold entirely — so the
+recalibration reports precision/recall **per `near_duplicate` and overall**, with no
+invented topic dimension.
+
+A committed fixture (`backend/app/agents/fixtures/labeled_edges_episodes.json`) makes the
+recalibration + its test run fully offline:
+
+```bash
+cd backend && .venv/bin/python -m app.agents.learning \
+    --output-json reports/recalibration.json --output-md reports/recalibration.md
+```
+
+On that fixture the current threshold `0.84` mislabels human-approved near-duplicates
+scoring 0.80–0.83; the gate accepts lowering it to `0.80` (held-out recall 0.50 → 1.00,
+precision held at 1.00). Recall against a live Elasticsearch is integration / run-locally.
+
 For a fuller status breakdown, see [docs/status.md](docs/status.md).
 
 ## Repository Layout
